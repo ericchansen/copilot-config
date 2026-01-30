@@ -14,29 +14,28 @@ To use these skills with GitHub Copilot CLI:
 1. Clone this repository:
    ```bash
    git clone https://github.com/yourusername/skills.git ~/repos/skills
+   cd ~/repos/skills
    ```
 
-2. Create symbolic links or junctions to the skills directory:
+2. Run the setup script:
    
    **Windows (PowerShell):**
    ```powershell
-   $skills = Get-ChildItem "$env:USERPROFILE\repos\skills\skills" -Directory
-   foreach ($skill in $skills) {
-       $target = $skill.FullName
-       $link = "$env:USERPROFILE\.copilot\skills\$($skill.Name)"
-       if (-not (Test-Path $link)) {
-           cmd /c mklink /J "$link" "$target"
-       }
-   }
+   ./setup.ps1
    ```
 
    **macOS/Linux:**
    ```bash
-   for skill in ~/repos/skills/skills/*/; do
-       skill_name=$(basename "$skill")
-       ln -s "$skill" ~/.copilot/skills/"$skill_name"
-   done
+   ./setup.sh
    ```
+
+The setup script will:
+- Clone skills from [Anthropic](https://github.com/anthropics/skills) and [GitHub](https://github.com/github/awesome-copilot)
+- Detect any naming conflicts between sources
+- Let you choose which source to use for conflicting skills
+- Create symlinks/junctions to `~/.copilot/skills`
+
+Run the setup script again at any time to update skills from external repositories.
 
 ## About Agent Skills
 
