@@ -304,7 +304,15 @@ This repository contains useful skills including the **weekly-impact-summary** s
 
    ```powershell
    cd ~\repos
-   git clone https://github.com/yourusername/skills.git
+   git clone git@github.com:ericchansen/skills.git
+   cd skills
+   ```
+
+   Or using HTTPS:
+
+   ```powershell
+   cd ~\repos
+   git clone https://github.com/ericchansen/skills.git
    cd skills
    ```
 
