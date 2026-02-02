@@ -45,6 +45,7 @@ ensure_directory() {
 clone_or_pull_repo() {
     local repo_url="$1"
     local target_path="$2"
+    local display_name="$3"
     
     if [[ -d "$target_path/.git" ]]; then
         # Repo exists, pull latest
@@ -59,7 +60,19 @@ clone_or_pull_repo() {
         parent_dir="$(dirname "$target_path")"
         ensure_directory "$parent_dir"
         if ! git clone --quiet "$repo_url" "$target_path" 2>/dev/null; then
-            echo "Failed to clone $repo_url" >&2
+            echo ""
+            err "Failed to clone $display_name"
+            echo ""
+            echo -e "  ${YELLOW}This usually happens because you don't have an SSH key associated${NC}"
+            echo -e "  ${YELLOW}with your GitHub account, or git isn't configured properly.${NC}"
+            echo ""
+            echo "  You can manually clone these repositories using HTTPS:"
+            echo ""
+            echo -e "    ${CYAN}git clone https://github.com/anthropics/skills.git${NC}"
+            echo -e "    ${CYAN}git clone https://github.com/github/awesome-copilot.git${NC}"
+            echo ""
+            echo "  Clone them into: $parent_dir"
+            echo ""
             return 1
         fi
     fi
@@ -165,7 +178,7 @@ for source in "${SOURCE_ORDER[@]}"; do
     skills_path="${SOURCE_PATHS[$source]}"
     
     if [[ -n "$repo" ]]; then
-        if ! clone_or_pull_repo "$repo" "$clone_to"; then
+        if ! clone_or_pull_repo "$repo" "$clone_to" "$display_name"; then
             err "$display_name: Failed to clone"
             SOURCE_STATS[$source]=0
             continue

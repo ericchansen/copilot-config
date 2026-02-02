@@ -2,6 +2,8 @@
 
 Personal collection of [Agent Skills](https://agentskills.io) for GitHub Copilot CLI and other AI agents.
 
+> **New to GitHub Copilot CLI?** Check out the [Getting Started Guide](docs/getting-started-windows.md) for a beginner-friendly walkthrough of installation and setup on Windows.
+
 ## Skills
 
 - **git-commit-message** - Expert guidance for writing professional Git commit messages following industry best practices from [Chris Beams' guide](https://cbea.ms/git-commit/)

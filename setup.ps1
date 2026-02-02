@@ -65,7 +65,8 @@ function Ensure-Directory {
 function Clone-Or-Pull-Repo {
     param(
         [string]$RepoUrl,
-        [string]$TargetPath
+        [string]$TargetPath,
+        [string]$DisplayName
     )
     
     if (Test-Path (Join-Path $TargetPath ".git")) {
@@ -85,7 +86,20 @@ function Clone-Or-Pull-Repo {
         Ensure-Directory $parentDir
         git clone --quiet $RepoUrl $TargetPath 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to clone $RepoUrl"
+            Write-Host ""
+            Write-Err "Failed to clone $DisplayName"
+            Write-Host ""
+            Write-Color "  This usually happens because you don't have an SSH key associated" "Yellow"
+            Write-Color "  with your GitHub account, or git isn't configured properly." "Yellow"
+            Write-Host ""
+            Write-Color "  You can manually clone these repositories using HTTPS:" "White"
+            Write-Host ""
+            Write-Color "    git clone https://github.com/anthropics/skills.git" "Cyan"
+            Write-Color "    git clone https://github.com/github/awesome-copilot.git" "Cyan"
+            Write-Host ""
+            Write-Color "  Clone them into: $parentDir" "White"
+            Write-Host ""
+            throw "Failed to clone $RepoUrl - see instructions above"
         }
     }
 }
@@ -199,7 +213,7 @@ $sourceStats = @{}
 foreach ($source in $sources) {
     try {
         if ($source.Repo) {
-            Clone-Or-Pull-Repo -RepoUrl $source.Repo -TargetPath $source.CloneTo
+            Clone-Or-Pull-Repo -RepoUrl $source.Repo -TargetPath $source.CloneTo -DisplayName $source.DisplayName
         }
         
         $skills = Get-Skills -BasePath $source.Path
