@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "azure-mcp": {
+      "url": "http://localhost:3000",
+      "description": "Azure MCP Server - Interact with Azure cloud services",
+      "tools": [
+        "*"
+      ]
+    },
+    "aspire-dashboard": {
+      "url": "http://localhost:18888",
+      "description": "Aspire Dashboard - Monitor .NET Aspire applications",
+      "tools": [
+        "*"
+      ]
+    }
+  }
+}

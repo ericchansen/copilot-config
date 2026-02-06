@@ -131,8 +131,120 @@ Keep output to one page or less. All links should be clickable for manager follo
 - _Impact: Clarity on H2 priorities and ownership_
 ```
 
+## Data Sources
+
+### 1. Microsoft 365 (via WorkIQ)
+Query for the past 7 days:
+- Meetings attended and key outcomes
+- Email threads and decisions
+- Teams chats and discussions
+- Scheduled upcoming meetings
+
+### 2. Copilot CLI Session Logs
+Location: `~/.copilot/session-state/`
+
+Scan for:
+- `plan.md` files in session directories (show what was being built)
+- `events.jsonl` files for intent/activity (what actions were taken)
+- `workspace.yaml` for project context
+
+### 3. Session Log Parsing
+
+For each session directory:
+1. Check if `plan.md` exists → read the problem statement and current status
+2. Look at modification dates to find recent sessions
+3. Extract key project names and technologies
+4. Match projects to accounts based on context clues
+
+```powershell
+# Find recent session plan files
+Get-ChildItem -Path "$env:USERPROFILE\.copilot\session-state" -Recurse -Filter "plan.md" | 
+  Where-Object { $_.LastWriteTime -gt (Get-Date).AddDays(-7) }
+```
+
+## PowerPoint Generation
+
+After creating the markdown summary, generate a **single-slide PowerPoint** for sharing with leadership.
+
+### Setup (one-time)
+```bash
+npm install pptxgenjs
+```
+
+### Slide Layout
+Single slide with:
+- **Dark header bar** with gradient accent strip
+- **Title**: "Weekly Summary • [Name] • [Date Range]" in cyan/blue
+- **3-column layout**: Internal (left) | Accounts (middle) | Accounts (right)
+  - Internal has equal prominence - not hidden at bottom
+- **UPCOMING** section at bottom with key meetings and priorities
+
+### Template Script
+Use `scripts/create-slides-template.js` as a starting point. Customize the content based on the weekly summary data:
+
+```javascript
+const pptxgen = require("pptxgenjs");
+
+const pres = new pptxgen();
+pres.layout = "LAYOUT_16x9";
+
+let slide = pres.addSlide();
+
+// Dark header bar
+slide.addShape("rect", {
+  x: 0, y: 0, w: "100%", h: 1.1,
+  fill: { type: "solid", color: "0F1419" }
+});
+
+// Accent strip
+slide.addShape("rect", {
+  x: 0, y: 1.1, w: "100%", h: 0.08,
+  fill: { type: "solid", color: "0078D4" }
+});
+
+// Title with gradient-style colors
+slide.addText([
+  { text: "Weekly Summary", options: { color: "00B4D8", bold: true } },
+  { text: "  •  [Name]  •  [Date Range]", options: { color: "888888" } }
+], {
+  x: 0.4, y: 0.35, w: 9.5, h: 0.5,
+  fontSize: 24, fontFace: "Segoe UI Light"
+});
+
+// 3-column layout:
+// col1X = 0.4 (INTERNAL - equal prominence)
+// col2X = 3.6 (Accounts: Citrix, TIBCO)
+// col3X = 6.8 (Accounts: NCR, IBM)
+// startY = 1.4
+
+// INTERNAL column includes:
+// - Technical building (e.g., "Built demo web app")
+// - Enablement sessions attended
+
+// UPCOMING section at bottom after divider
+
+pres.writeFile({ fileName: "weekly-summary-YYYY-MM-DD.pptx" });
+```
+
+### Generation Steps
+
+1. Gather data (Work IQ + session logs)
+2. Create markdown summary
+3. Generate PowerPoint by:
+   - Creating a new JS file with customized content from the template
+   - Running `node create-slides.js "weekly-summary-YYYY-MM-DD.pptx"`
+4. Output file ready to share
+
+### Design Guidelines
+- **Keep it scannable** - one slide means tight, impactful content
+- **Account names** in blue headers, bullets in gray
+- **"Coming up"** items show forward momentum
+- **No fluff** - every word should earn its place
+
 ## Usage Notes
 
 - Run weekly, ideally Thursday or Friday
 - Save output to session files/ for historical tracking
 - Use WorkIQ skill to query Microsoft 365 data
+- Organize by account/customer, not by activity type
+- Technical building goes WITH the account it supports, not separate

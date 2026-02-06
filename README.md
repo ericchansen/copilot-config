@@ -1,26 +1,26 @@
-# Custom Agent Skills
+# Copilot Config
 
-Personal collection of [Agent Skills](https://agentskills.io) for GitHub Copilot CLI and other AI agents.
+Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) configuration, custom skills, and setup automation — synced across machines via Git.
 
-> **New to GitHub Copilot CLI?** Check out the [Getting Started Guide](docs/getting-started-windows.md) for a beginner-friendly walkthrough of installation and setup on Windows.
+## What's Included
 
-## Skills
+| File | Purpose |
+|------|---------|
+| `.copilot/copilot-instructions.md` | Global custom instructions for all sessions |
+| `.copilot/mcp.json` | MCP server configuration |
+| `.copilot/config.portable.json` | Portable settings (model, theme, banner — no auth) |
+| `.copilot/skills/` | Custom skills (see below) |
 
-- **git-commit-message** - Expert guidance for writing professional Git commit messages following industry best practices from [Chris Beams' guide](https://cbea.ms/git-commit/)
-- **weekly-impact-summary** - Generate evidence-based weekly impact summaries focused on measurable business outcomes using WorkIQ integration
+## Quick Start
 
-## Installation
-
-To use these skills with GitHub Copilot CLI:
-
-1. Clone this repository:
+1. **Clone this repository:**
    ```bash
-   git clone https://github.com/yourusername/skills.git ~/repos/skills
-   cd ~/repos/skills
+   git clone git@github.com:ericchansen/copilot-config.git ~/repos/copilot-config
+   cd ~/repos/copilot-config
    ```
 
-2. Run the setup script:
-   
+2. **Run the setup script:**
+
    **Windows (PowerShell):**
    ```powershell
    ./setup.ps1
@@ -32,19 +32,71 @@ To use these skills with GitHub Copilot CLI:
    ```
 
 The setup script will:
-- Clone skills from [Anthropic](https://github.com/anthropics/skills) and [GitHub](https://github.com/github/awesome-copilot)
-- Detect any naming conflicts between sources
-- Let you choose which source to use for conflicting skills
-- Create symlinks/junctions to `~/.copilot/skills`
+- Back up your existing `~/.copilot/` config
+- Symlink instructions, MCP config, and skills into `~/.copilot/`
+- Patch your `config.json` with portable settings (without touching auth)
+- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/github/awesome-copilot)) and link those skills too
+- Handle naming conflicts between skill sources interactively
 
-Run the setup script again at any time to update skills from external repositories.
+Run the setup script again at any time to pull updates and re-sync.
+
+## Updating
+
+```bash
+cd ~/repos/copilot-config
+git pull
+./setup.ps1   # or ./setup.sh
+```
+
+## Restoring
+
+If something breaks, use the restore script to remove all symlinks and optionally restore from backup:
+
+```powershell
+./restore.ps1   # or ./restore.sh
+```
+
+## Custom Skills
+
+### git-commit
+Conventional commit messages with [Chris Beams' 7 rules](https://cbea.ms/git-commit/). Auto-detects type and scope from your diff, generates properly formatted commit messages, and supports intelligent file staging for logical grouping.
+
+**Trigger:** Ask to commit, create a git commit, or say "/commit"
+
+### take-out-the-trash
+Clean up unused git branches, merged/closed pull requests, stale remote tracking refs, and old stashes. Analyzes your repo state, shows what's safe to delete, and asks for confirmation before removing anything.
+
+**Trigger:** "clean up", "take out the trash", "prune branches", "delete merged branches"
+
+### land-this-plane
+End-of-session wrap-up workflow. Ensures everything is committed, pushed, and a PR is created. Files GitHub issues for remaining work, runs quality gates, and provides a session summary.
+
+**Trigger:** "land this plane", "wrap up", "finish up session"
+
+### summon-the-knights-of-the-round-table
+Multi-model brainstorming using GPT-5.2-Codex and Gemini 3 Pro. Gathers context, frames a question, queries both models for divergent perspectives, then synthesizes a consensus with agreed conclusions, resolved disagreements, and recommended actions.
+
+**Trigger:** "summon knights of the round table to review..."
+
+### weekly-impact-summary
+Evidence-based weekly impact summaries via [WorkIQ](https://github.com/microsoft/work-iq-mcp) integration. Pulls M365 activity data (meetings, emails, chats) and focuses on measurable business outcomes rather than activity lists.
+
+**Trigger:** "weekly summary", "impact summary", "what did I work on this week"
+
+## Migrating from `ericchansen/skills`
+
+If you previously cloned this repo as `skills`, update your remote:
+
+```bash
+cd ~/repos/skills
+git remote set-url origin git@github.com:ericchansen/copilot-config.git
+# Optionally rename the local directory
+cd .. && mv skills copilot-config
+```
 
 ## About Agent Skills
 
-Agent Skills are an [open standard](https://github.com/agentskills/agentskills) maintained by Anthropic for giving agents new capabilities and expertise. Skills are folders containing:
-
-- `SKILL.md` (required) - Instructions with YAML frontmatter (name, description) and markdown body
-- Optional bundled resources: scripts, references, and assets
+Agent Skills are an [open standard](https://github.com/agentskills/agentskills) maintained by Anthropic for giving agents new capabilities. Skills are folders containing a `SKILL.md` with YAML frontmatter and optional bundled resources (scripts, references, assets).
 
 ## License
 
