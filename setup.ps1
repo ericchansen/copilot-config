@@ -32,7 +32,8 @@ $portableJsonPath = Join-Path $repoCopilotDir "config.portable.json"
 # Config files to symlink (file symlinks)
 $configFileLinks = @(
     @{ Name = "copilot-instructions.md" },
-    @{ Name = "mcp.json" }
+    @{ Name = "mcp-config.json" },
+    @{ Name = "mcp.json"; Target = "mcp-config.json" }
 )
 
 # Keys allowed to be patched from config.portable.json into config.json
@@ -333,7 +334,8 @@ Write-Success "~/.copilot/ and ~/.copilot/skills/ exist"
 Write-Step "Step 3: Symlink config files"
 
 foreach ($cfg in $configFileLinks) {
-    $targetPath = Join-Path $repoCopilotDir $cfg.Name
+    $sourceFileName = if ($cfg.Target) { $cfg.Target } else { $cfg.Name }
+    $targetPath = Join-Path $repoCopilotDir $sourceFileName
     $linkPath = Join-Path $copilotHome $cfg.Name
 
     if (-not (Test-Path $targetPath)) {
@@ -341,7 +343,8 @@ foreach ($cfg in $configFileLinks) {
         continue
     }
 
-    $result = Create-FileSymlink -LinkPath $linkPath -TargetPath $targetPath -DisplayName $cfg.Name
+    $displayName = if ($cfg.Target) { "$($cfg.Name) → $($cfg.Target)" } else { $cfg.Name }
+    $result = Create-FileSymlink -LinkPath $linkPath -TargetPath $targetPath -DisplayName $displayName
 
     switch ($result) {
         "created" {
