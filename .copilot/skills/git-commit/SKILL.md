@@ -88,6 +88,29 @@ git add -p
 
 **Never commit secrets** (.env, credentials.json, private keys).
 
+### 2b. Scan for Secrets (MANDATORY)
+
+Before proceeding to commit, scan the staged diff for leaked secrets:
+
+```bash
+git diff --staged
+```
+
+**Check for these patterns in the diff output:**
+- API keys: `sk-`, `ctx7sk-`, `ghp_`, `ghu_`, `ghs_`, `AKIA`, `xox[bpas]-`
+- Tokens/auth: `Bearer `, `token=`, `authorization:`, `api[_-]?key`
+- Passwords: `password`, `passwd`, `secret`, `credential`
+- Connection strings: `connectionString`, `Server=`, `mongodb://`, `postgres://`, `redis://`
+- Private keys: `-----BEGIN`, `.pem`, `.pfx`, `.p12`, `.key` files
+- Cloud: `AWS_SECRET`, `AZURE_`, `GCP_`, `GOOGLE_APPLICATION_CREDENTIALS`
+
+**If ANY secrets are detected:**
+1. **STOP — do not commit**
+2. Tell the user exactly what was found (file, line, pattern matched)
+3. Suggest moving the value to an environment variable or `.env` file
+4. Verify `.env` is in `.gitignore`
+5. Only proceed after the secret is removed from staged changes
+
 ### 3. Generate Commit Message
 
 Analyze the diff to determine:
@@ -169,6 +192,8 @@ chore: Update Node.js to v20 LTS
 
 ## Pre-Commit Checklist
 
+- [ ] Staged diff scanned for secrets (API keys, tokens, passwords, private keys)
+- [ ] No secrets present in staged changes
 - [ ] Starts with valid type prefix (`feat:`, `fix:`, etc.)
 - [ ] Subject ≤50 characters (hard max 72)
 - [ ] Capitalized first word after prefix
