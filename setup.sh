@@ -26,7 +26,7 @@ CONFIG_JSON_PATH="$COPILOT_HOME/config.json"
 PORTABLE_JSON_PATH="$REPO_COPILOT_DIR/config.portable.json"
 
 # Config files to symlink (file symlinks)
-CONFIG_FILE_LINKS=("copilot-instructions.md" "mcp.json")
+CONFIG_FILE_LINKS=("copilot-instructions.md" "mcp-config.json" "mcp.json=mcp-config.json")
 
 # Keys allowed to be patched from config.portable.json into config.json
 PORTABLE_ALLOWED_KEYS=("banner" "model" "render_markdown" "theme" "experimental" "reasoning_effort")
@@ -484,30 +484,42 @@ write_success "~/.copilot/ and ~/.copilot/skills/ exist"
 write_step "Step 3: Symlink config files"
 
 for cfg in "${CONFIG_FILE_LINKS[@]}"; do
-    target_path="$REPO_COPILOT_DIR/$cfg"
-    link_path="$COPILOT_HOME/$cfg"
+    # Support "linkname=sourcefile" syntax for aliased symlinks
+    if [[ "$cfg" == *"="* ]]; then
+        link_name="${cfg%%=*}"
+        source_name="${cfg#*=}"
+    else
+        link_name="$cfg"
+        source_name="$cfg"
+    fi
+
+    target_path="$REPO_COPILOT_DIR/$source_name"
+    link_path="$COPILOT_HOME/$link_name"
 
     if [[ ! -f "$target_path" ]]; then
-        write_warn "$cfg — source not found in repo, skipping"
+        write_warn "$link_name — source not found in repo, skipping"
         continue
     fi
 
-    result=$(create_file_symlink "$link_path" "$target_path" "$cfg")
+    display_name="$link_name"
+    [[ "$link_name" != "$source_name" ]] && display_name="$link_name → $source_name"
+
+    result=$(create_file_symlink "$link_path" "$target_path" "$display_name")
 
     case "$result" in
         created)
-            write_success "$cfg → linked"
-            SUMMARY_CONFIG_FILES_LINKED+=("$cfg")
+            write_success "$display_name → linked"
+            SUMMARY_CONFIG_FILES_LINKED+=("$link_name")
             ;;
         exists)
-            write_info "$cfg — already linked correctly"
+            write_info "$display_name — already linked correctly"
             ;;
         skipped)
-            write_warn "$cfg — skipped (user declined)"
-            SUMMARY_CONFIG_FILES_SKIPPED+=("$cfg")
+            write_warn "$display_name — skipped (user declined)"
+            SUMMARY_CONFIG_FILES_SKIPPED+=("$link_name")
             ;;
         failed)
-            write_err "$cfg — failed to create symlink"
+            write_err "$display_name — failed to create symlink"
             ;;
     esac
 done

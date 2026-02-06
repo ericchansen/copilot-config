@@ -1,0 +1,67 @@
+{
+  "mcpServers": {
+    "azure-mcp": {
+      "tools": [
+        "*"
+      ],
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure/mcp@latest",
+        "server",
+        "start"
+      ]
+    },
+    "aspire-dashboard": {
+      "url": "http://localhost:18888",
+      "description": "Aspire Dashboard - Monitor .NET Aspire applications",
+      "tools": [
+        "*"
+      ]
+    },
+    "context7": {
+      "tools": [
+        "query-docs",
+        "resolve-library-id"
+      ],
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-0f2a0565-5acd-4b8a-b962-fc6c7066574d"
+      }
+    },
+    "microsoft-learn": {
+      "tools": [
+        "*"
+      ],
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "headers": {}
+    },
+    "playwright": {
+      "tools": [
+        "*"
+      ],
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser",
+        "msedge"
+      ]
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": "npx",
+      "tools": [
+        "*"
+      ],
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
+      "env": {}
+    }
+  }
+}
