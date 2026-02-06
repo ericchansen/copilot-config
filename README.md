@@ -40,6 +40,37 @@ The setup script will:
 
 Run the setup script again at any time to pull updates and re-sync.
 
+## Environment Variables
+
+Some MCP servers require API keys or secrets. These are referenced in `mcp-config.json` using `${VAR_NAME}` syntax so that secrets are never committed to git.
+
+### Required Variables
+
+| Variable | Purpose | How to Get |
+|----------|---------|-----------|
+| `CONTEXT7_API_KEY` | Context7 documentation lookup | [context7.com](https://context7.com) — free tier available |
+
+### Setting Variables (Windows)
+
+```powershell
+# Set permanently for your user account (persists across reboots)
+[System.Environment]::SetEnvironmentVariable("CONTEXT7_API_KEY", "your-key-here", "User")
+
+# Restart your terminal for the change to take effect
+```
+
+### Setting Variables (macOS/Linux)
+
+```bash
+# Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+export CONTEXT7_API_KEY="your-key-here"
+
+# Reload your shell
+source ~/.bashrc  # or ~/.zshrc
+```
+
+> **Note:** Never put actual API keys in `mcp-config.json` — always use `${VAR_NAME}` references. The Copilot CLI resolves these from your environment at startup.
+
 ## Updating
 
 ```bash

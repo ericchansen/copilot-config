@@ -34,10 +34,16 @@ git checkout -b <type>/<short-description>
    - Do NOT skip this step. Do NOT push without running E2E first.
    - E2E tests catch integration bugs that unit tests miss.
    - If E2E tests fail locally, they WILL fail in CI. Fix them first.
-5. UI apps: validate with Playwright MCP browser tools (uses **Edge**, not Chrome)
-6. Azure apps: deploy and validate with Playwright MCP browser tools
-7. **If tests fail**: fix first, never commit broken code
-8. **If tests won't run**: research (Context7, MS Learn), then ask user
+5. **🔑 Scan staged diff for secrets — MANDATORY**
+   - Check `git diff --staged` for: API keys, tokens, passwords, connection strings, private keys, `.pem`/`.pfx` files
+   - Common patterns: `sk-`, `ctx7sk-`, `ghp_`, `Bearer `, `password=`, `connectionString`, `-----BEGIN`
+   - If ANY secrets are found: **STOP — do not commit**
+   - Alert the user with the exact file and line
+   - Move secrets to environment variables or `.env` files (must be in `.gitignore`)
+6. UI apps: validate with Playwright MCP browser tools (uses **Edge**, not Chrome)
+7. Azure apps: deploy and validate with Playwright MCP browser tools
+8. **If tests fail**: fix first, never commit broken code
+9. **If tests won't run**: research (Context7, MS Learn), then ask user
 
 ### Commit & Push
 ```bash
