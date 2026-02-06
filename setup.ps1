@@ -156,12 +156,19 @@ function Create-FileSymlink {
     cmd /c mklink "$LinkPath" "$TargetPath" 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) { return "created" }
 
-    # Fallback: try PowerShell New-Item
+    # Fallback: try PowerShell New-Item (requires Developer Mode on Windows)
     try {
         New-Item -ItemType SymbolicLink -Path $LinkPath -Target $TargetPath -Force | Out-Null
         return "created"
     } catch {
-        return "failed"
+        # Symlinks require Developer Mode or admin on Windows
+        # Fall back to copying the file (re-run setup after git pull to sync)
+        try {
+            Copy-Item -Path $TargetPath -Destination $LinkPath -Force
+            return "copied"
+        } catch {
+            return "failed"
+        }
     }
 }
 
@@ -339,6 +346,10 @@ foreach ($cfg in $configFileLinks) {
     switch ($result) {
         "created" {
             Write-Success "$($cfg.Name) → linked"
+            $script:summary.ConfigFilesLinked += $cfg.Name
+        }
+        "copied" {
+            Write-Warn "$($cfg.Name) → copied (symlinks need Developer Mode; re-run setup after git pull)"
             $script:summary.ConfigFilesLinked += $cfg.Name
         }
         "exists" {
