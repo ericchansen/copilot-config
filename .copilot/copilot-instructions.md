@@ -52,16 +52,23 @@ git push -u origin <branch-name>
 gh pr create --title "<type>: <description>" --body "..."
 ```
 
+### Clean Commit History (No Merge Commits)
+- **Never create merge commits** — keep history linear
+- **Prefer fast-forward merges** or **rebase and merge**
+- Before merging, always rebase onto the target branch:
+  ```bash
+  git fetch origin main
+  git rebase -i origin/main
+  git push --force-with-lease
+  ```
+- Use `git merge --ff-only` for local merges (fails if fast-forward isn't possible)
+- If a PR, use **"Rebase and merge"** only — never "Create a merge commit" or "Squash and merge"
+- Every commit should be a clean, human-readable unit that tells a useful part of the story
+
 ### After PR Creation
 1. Monitor CI: `gh pr checks <pr-number> --watch`
 2. If tests fail: fix locally, commit, push, repeat
-3. Before merge, rebase to clean history:
-   ```bash
-   git fetch origin main
-   git rebase -i origin/main
-   git push --force-with-lease
-   ```
-4. Do not request review from user until CI is green (or you get stuck)
+3. Do not request review from user until CI is green (or you get stuck)
 
 ### After Merge
 ```bash
