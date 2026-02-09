@@ -7,7 +7,8 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
 | File | Purpose |
 |------|---------|
 | `.copilot/copilot-instructions.md` | Global custom instructions for all sessions |
-| `.copilot/mcp.json` | MCP server configuration |
+| `.copilot/lsp-config.json` | Language server configuration (TypeScript, Python, Rust) |
+| `.copilot/mcp-config.json` | MCP server configuration |
 | `.copilot/config.portable.json` | Portable settings (model, theme, banner — no auth) |
 | `.copilot/skills/` | Custom skills (see below) |
 

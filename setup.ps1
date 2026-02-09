@@ -32,6 +32,7 @@ $portableJsonPath = Join-Path $repoCopilotDir "config.portable.json"
 # Config files to symlink (file symlinks)
 $configFileLinks = @(
     @{ Name = "copilot-instructions.md" },
+    @{ Name = "lsp-config.json" },
     @{ Name = "mcp-config.json" },
     @{ Name = "mcp.json"; Target = "mcp-config.json" }
 )
@@ -288,7 +289,7 @@ if (Test-Path $copilotHome) {
     Ensure-Directory $backupDir
 
     # Back up config files (not sessions/logs/caches)
-    $configFiles = @("config.json", "copilot-instructions.md", "mcp.json")
+    $configFiles = @("config.json", "copilot-instructions.md", "lsp-config.json", "mcp.json")
     foreach ($f in $configFiles) {
         $src = Join-Path $copilotHome $f
         if (Test-Path $src) {

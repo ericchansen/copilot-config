@@ -26,7 +26,7 @@ CONFIG_JSON_PATH="$COPILOT_HOME/config.json"
 PORTABLE_JSON_PATH="$REPO_COPILOT_DIR/config.portable.json"
 
 # Config files to symlink (file symlinks)
-CONFIG_FILE_LINKS=("copilot-instructions.md" "mcp-config.json" "mcp.json=mcp-config.json")
+CONFIG_FILE_LINKS=("copilot-instructions.md" "lsp-config.json" "mcp-config.json" "mcp.json=mcp-config.json")
 
 # Keys allowed to be patched from config.portable.json into config.json
 PORTABLE_ALLOWED_KEYS=("banner" "model" "render_markdown" "theme" "experimental" "reasoning_effort")
@@ -439,7 +439,7 @@ if [[ -d "$COPILOT_HOME" ]]; then
     ensure_directory "$BACKUP_DIR"
 
     # Back up config files (not sessions/logs/caches)
-    for f in config.json copilot-instructions.md mcp.json; do
+    for f in config.json copilot-instructions.md lsp-config.json mcp.json; do
         src="$COPILOT_HOME/$f"
         if [[ -f "$src" ]]; then
             cp "$src" "$BACKUP_DIR/$f"
