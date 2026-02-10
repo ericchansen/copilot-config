@@ -6,7 +6,7 @@
 |------|---------|
 | **Never commit broken code** | Linter + full test suite must pass first |
 | **⚠️ RUN E2E TESTS LOCALLY** | **MANDATORY before ANY push** — no exceptions |
-| **Never commit to main** | Always use feature branches |
+| **Commit locally by default** | Only push when explicitly asked |
 | **Cite everything** | Every stat/claim needs a clickable URL |
 | **Challenge assumptions** | Question approaches, push back with evidence |
 | **Research first** | Use Context7 / Microsoft Learn MCP before implementing |
@@ -15,15 +15,13 @@
 
 **Prefixes:** `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `perf`
 
-### Start Work
-```bash
-git checkout main && git pull
-git checkout -b <type>/<short-description>
-```
+### Branching
+- Follow repo-specific instructions (AGENTS.md, CONTRIBUTING.md, etc.)
+- If no repo guidance exists, use feature branches: `git checkout -b <type>/<short-description>`
 
 ### During Development
 - Run tests after each logical change—catch failures early
-- Commit frequently; one PR per logical piece of work
+- Commit frequently with clear messages
 
 ### Before Any Commit
 1. Run linter (`ruff check .`, `npm run lint`, etc.)
@@ -45,35 +43,26 @@ git checkout -b <type>/<short-description>
 8. **If tests fail**: fix first, never commit broken code
 9. **If tests won't run**: research (Context7, MS Learn), then ask user
 
-### Commit & Push
+### Commit
 ```bash
 git commit -m "<type>: <description>"  # Use git-commit skill
-git push -u origin <branch-name>
-gh pr create --title "<type>: <description>" --body "..."
 ```
+
+### Push & PR
+- **Do NOT push or create PRs unless the user explicitly asks**
+- Default is local-only: commit, but don't push
+- When asked to push:
+  ```bash
+  git push -u origin <branch-name>
+  ```
+- Only create a PR if the user asks for one
 
 ### Clean Commit History (No Merge Commits)
-- **Never create merge commits** — keep history linear
-- **Prefer fast-forward merges** or **rebase and merge**
-- Before merging, always rebase onto the target branch:
-  ```bash
-  git fetch origin main
-  git rebase -i origin/main
-  git push --force-with-lease
-  ```
-- Use `git merge --ff-only` for local merges (fails if fast-forward isn't possible)
-- If a PR, use **"Rebase and merge"** only — never "Create a merge commit" or "Squash and merge"
-- Every commit should be a clean, human-readable unit that tells a useful part of the story
-
-### After PR Creation
-1. Monitor CI: `gh pr checks <pr-number> --watch`
-2. If tests fail: fix locally, commit, push, repeat
-3. Do not request review from user until CI is green (or you get stuck)
-
-### After Merge
-```bash
-git checkout main && git pull && git branch -d <branch>
-```
+- **Prefer linear history** — avoid merge commits when possible
+- Use `git rebase` before merging or pushing
+- Use `git merge --ff-only` for local merges
+- If a PR, prefer **"Rebase and merge"** — never "Create a merge commit"
+- Every commit should be a clean, readable unit
 
 ## Environment & Azure
 
