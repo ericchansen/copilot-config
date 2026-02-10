@@ -55,6 +55,21 @@
         "chrome-devtools-mcp@latest"
       ],
       "env": {}
+    },
+    "ascii-motion-mcp": {
+      "type": "local",
+      "command": "node",
+      "tools": [
+        "*"
+      ],
+      "args": [
+        "C:\\Users\\erichansen\\repos\\ascii-motion-mcp\\dist\\index.js",
+        "--live",
+        "--token",
+        "${ASCII_MOTION_TOKEN}",
+        "--project-dir",
+        "C:\\Users\\erichansen\\copilot\\ascii-motion"
+      ]
     }
   }
 }

@@ -1,6 +1,9 @@
 # External skill repositories (cloned by setup script)
 external/
 
+# Local secrets
+.env
+
 # OS files
 .DS_Store
 Thumbs.db
