@@ -27,8 +27,6 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 | `restore.ps1` / `restore.sh` | Uninstall: remove symlinks, optionally restore backups | — |
 | `sync-skills.ps1` / `sync-skills.sh` | Adopt untracked skills from `~/.copilot/skills/` | — |
 
-Note: `~/.copilot/mcp.json` is a symlink alias pointing to `mcp-config.json` for compatibility.
-
 ## Adding a New Tracked Config File
 
 Update **4 places** across the two setup scripts:
@@ -48,7 +46,6 @@ Don't just run `git status`. Also compare `~/.copilot/` against the repo for **n
 ~/.copilot/config.json          # machine-specific, NOT tracked (only patched)
 ~/.copilot/copilot-instructions.md  # should be symlink → repo
 ~/.copilot/mcp-config.json      # should be symlink → repo
-~/.copilot/mcp.json             # should be symlink → repo (alias)
 ~/.copilot/lsp-config.json      # should be symlink → repo
 ~/.copilot/skills/*             # should be directory junctions → repo or external/
 ```
