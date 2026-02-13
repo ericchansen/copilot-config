@@ -70,6 +70,16 @@
         "--project-dir",
         "C:\\Users\\erichansen\\copilot\\ascii-motion"
       ]
+    },
+    "msx-mcp": {
+      "type": "local",
+      "command": "node",
+      "tools": [
+        "*"
+      ],
+      "args": [
+        "C:\\Users\\erichansen\\repos\\msx-mcp\\dist\\index.js"
+      ]
     }
   }
 }

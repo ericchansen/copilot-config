@@ -29,6 +29,8 @@ After the first successful run, **store the user's answers in memory** (solution
 
 ### Step 2: Query WorkIQ for Monthly Evidence
 
+> **Prerequisite:** The user must be connected to the Microsoft corporate VPN and have run `az login --tenant 72f988bf-86f1-41af-91ab-2d7cd011db47` for MSX MCP tools to work.
+
 Run the following WorkIQ queries to gather raw material. Adapt the account names based on the user's input from Step 1.
 
 **Query 1 — Overall Month Summary:**
@@ -37,11 +39,32 @@ Run the following WorkIQ queries to gather raw material. Adapt the account names
 **Query 2 — Per-Account Deep Dive (repeat for each account):**
 > "For [ACCOUNT NAME] during [MONTH YEAR], what specific meetings, emails, and Teams conversations did I participate in? What technical topics were discussed? Were there any decisions made, blockers resolved, or deliverables created? Include links where possible."
 
-**Query 3 — Opportunity & Deal Evidence:**
-> "During [MONTH YEAR], what information do I have about Azure consumption, opportunity stages, deal movement, MACC status, or pipeline for [ACCOUNT1], [ACCOUNT2], [ACCOUNT3]? Include any references to MSX, opportunity IDs, ACR, or revenue figures."
-
-**Query 4 — Contribution & Internal Work:**
+**Query 3 — Contribution & Internal Work:**
 > "What internal contributions did I make during [MONTH YEAR]? Include hiring interviews, guild participation, enablement sessions, workshops, internal tools or artifacts created, and any cross-team collaboration."
+
+### Step 2.5: Query MSX MCP for Structured Deal Data
+
+Use the **msx-mcp** MCP tools to pull precise opportunity and pipeline data. This replaces the guesswork WorkIQ does for MSX-specific data (opportunity stages, revenue, deal teams).
+
+**Tool 1 — Pipeline Overview:**
+Call `get_pipeline_summary` (no args) to get the user's full pipeline broken down by sales stage with dollar totals. Use this for the Portfolio Summary roll-up metrics.
+
+**Tool 2 — Top Opportunity Suggestions:**
+Call `suggest_top_opportunities` with `count` matching the user's requested number of opportunities (default 3) and `criteria: "by_value"`. This returns ranked opportunities with forecast comments and rationale — use as the starting point for which opportunities to feature.
+
+**Tool 3 — Opportunity Details (repeat per featured opportunity):**
+For each opportunity the user confirms they want to feature, call `get_opportunity_details` with the `opportunity_id` from the suggestion results. This provides MSX ID, sales stage, estimated value, billed revenue, forecast comments, deal type, and sales play.
+
+**Tool 4 — Account Team Context:**
+Call `get_account_team` (no args) to get the user's account assignments, roles, and solution areas. Use for the Owner & V-Team fields.
+
+**Tool 5 — Deal Team for V-Team (optional):**
+Call `get_my_deals` to see all deal team memberships. Cross-reference with the featured opportunities to identify who else is on each deal.
+
+**Merging MSX + WorkIQ Data:**
+- MSX MCP provides: opportunity names, MSX IDs, sales stages, dollar values, forecast comments, deal teams, account roles
+- WorkIQ provides: meeting evidence, email context, Teams conversations, deliverables, internal contributions
+- Use MSX data for structured fields (dollar amounts, stages, IDs); use WorkIQ for narrative evidence (what happened, what was discussed)
 
 ### Step 3: Generate Intermediate Markdown
 
@@ -194,9 +217,9 @@ When WorkIQ can't provide a value, use these placeholders so the user can fill t
 | Placeholder | Meaning |
 |-------------|---------|
 | `[___]` | Generic unknown — fill in manually |
-| `[MSX ID: ___]` | MSX Opportunity ID needed |
-| `[ACR: $___]` | ACR dollar figure needed |
-| `[MCEM Stage: ___]` | MCEM stage number needed |
+| `[MSX ID: ___]` | MSX Opportunity ID needed (try `get_opportunity_details`) |
+| `[ACR: $___]` | ACR dollar figure needed (check MSX `estimatedvalue` / `msp_billedrevenue`) |
+| `[MCEM Stage: ___]` | MCEM stage number needed (try `get_opportunity_details` for `msp_activesalesstage`) |
 | `[U2C: $___]` | Uncommitted-to-close amount needed |
 | `[MACC: ___]` | MACC enrollment details needed |
 | `[Partner: ___]` | Partner assignment needed |
@@ -204,8 +227,11 @@ When WorkIQ can't provide a value, use these placeholders so the user can fill t
 ## Usage Notes
 
 - Run monthly, ideally in the second week of the month (covering the prior month)
+- **VPN required:** Connect to Microsoft corporate VPN before running (MSX Dataverse is IP-restricted)
+- **Azure CLI auth:** Run `az login --tenant 72f988bf-86f1-41af-91ab-2d7cd011db47` before the first run each session
 - Save output to session `files/` for historical reference
 - The docx output is optimized for copy-paste into OneNote
 - Organize opportunities by impact/importance, not alphabetically
-- Be conservative with claims — only include what WorkIQ can evidence
+- MSX MCP provides structured data (IDs, stages, values); WorkIQ provides narrative evidence (meetings, emails)
+- Be conservative with claims — only include what MSX or WorkIQ can evidence
 - When in doubt, leave a placeholder rather than fabricate
