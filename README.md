@@ -110,10 +110,10 @@ Multi-model brainstorming using GPT-5.2-Codex and Gemini 3 Pro. Gathers context,
 
 **Trigger:** "summon knights of the round table to review..."
 
-### weekly-impact-summary
-Evidence-based weekly impact summaries via [WorkIQ](https://github.com/microsoft/work-iq-mcp) integration. Pulls M365 activity data (meetings, emails, chats) and focuses on measurable business outcomes rather than activity lists.
+### weekly-impact-report
+Evidence-based weekly impact reports via [WorkIQ](https://github.com/microsoft/work-iq-mcp) + [msx-mcp](https://github.com/ericchansen/msx-mcp) integration. Pulls M365 activity data (meetings, emails, chats) and MSX deal context, focusing on measurable business outcomes rather than activity lists. Now lives in the msx-mcp repo.
 
-**Trigger:** "weekly summary", "impact summary", "what did I work on this week"
+**Trigger:** "weekly report", "impact report", "what did I work on this week"
 
 ## Migrating from `ericchansen/skills`
 
