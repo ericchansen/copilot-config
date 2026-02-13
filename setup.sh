@@ -37,6 +37,7 @@ EXTERNAL_DISPLAY=("anthropics/skills" "github/awesome-copilot" "ericchansen/msx-
 EXTERNAL_REPOS=("https://github.com/anthropics/skills.git" "https://github.com/github/awesome-copilot.git" "https://github.com/ericchansen/msx-mcp.git")
 EXTERNAL_CLONE_DIRS=("anthropic-skills" "awesome-copilot" "msx-mcp")
 EXTERNAL_SKILLS_SUBDIRS=("skills" "skills" "skills")
+EXTERNAL_LOCAL_PATHS=("" "" "$HOME/repos/msx-mcp")
 
 # =============================================================================
 # Summary counters
@@ -641,7 +642,13 @@ for i in "${!EXTERNAL_NAMES[@]}"; do
     ext_name="${EXTERNAL_NAMES[$i]}"
     ext_display="${EXTERNAL_DISPLAY[$i]}"
     ext_repo="${EXTERNAL_REPOS[$i]}"
-    clone_path="$EXTERNAL_DIR/${EXTERNAL_CLONE_DIRS[$i]}"
+    # Use LocalPath if specified, otherwise clone into external/
+    local_path="${EXTERNAL_LOCAL_PATHS[$i]}"
+    if [[ -n "$local_path" ]]; then
+        clone_path="$local_path"
+    else
+        clone_path="$EXTERNAL_DIR/${EXTERNAL_CLONE_DIRS[$i]}"
+    fi
     skills_path="$clone_path/${EXTERNAL_SKILLS_SUBDIRS[$i]}"
 
     clone_result=$(clone_or_pull_repo "$ext_repo" "$clone_path" "$ext_display")

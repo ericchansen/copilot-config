@@ -11,7 +11,7 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 - **Default branch:** `master`
 - **Push directly to `master`** — no feature branches, no PRs. This is a personal config repo.
 - **No tests or CI** — just commit and push.
-- The global `copilot-instructions.md` says "never commit to main, always use feature branches" — this repo is the **exception**.
+- The global `copilot-instructions.md` defaults to feature branches (`git checkout -b <type>/<short-description>`) when no repo guidance exists — this repo **overrides** that. AGENTS.md takes precedence over user-level instructions.
 
 ## File Layout
 
@@ -22,7 +22,7 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 | `.copilot/lsp-config.json` | LSP server configuration | → `~/.copilot/lsp-config.json` |
 | `.copilot/config.portable.json` | Portable settings (model, theme, etc.) | **No** — patched into `config.json` |
 | `.copilot/skills/` | Custom skills | Directory junctions |
-| `external/` | Cloned external skill repos (anthropic, github) | — |
+| `external/` | Cloned external skill repos (repos without `LocalPath`) | — |
 | `setup.ps1` / `setup.sh` | Install: symlink configs, patch settings, clone externals, link skills | — |
 | `restore.ps1` / `restore.sh` | Uninstall: remove symlinks, optionally restore backups | — |
 | `sync-skills.ps1` / `sync-skills.sh` | Adopt untracked skills from `~/.copilot/skills/` | — |

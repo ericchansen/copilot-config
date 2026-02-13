@@ -63,6 +63,7 @@ $externalRepos = @(
         Repo        = "https://github.com/ericchansen/msx-mcp.git"
         CloneDir    = "msx-mcp"
         SkillsSubdir = "skills"
+        LocalPath   = Join-Path $env:USERPROFILE "repos\msx-mcp"
     }
 )
 
@@ -536,7 +537,12 @@ foreach ($skill in $localSkills) {
 }
 
 foreach ($repo in $externalRepos) {
-    $clonePath = Join-Path $externalDir $repo.CloneDir
+    # Use LocalPath if specified, otherwise clone into external/
+    if ($repo.LocalPath -and $repo.LocalPath -ne "") {
+        $clonePath = $repo.LocalPath
+    } else {
+        $clonePath = Join-Path $externalDir $repo.CloneDir
+    }
     $skillsPath = Join-Path $clonePath $repo.SkillsSubdir
 
     $cloneResult = Clone-Or-Pull-Repo -RepoUrl $repo.Repo -TargetPath $clonePath -DisplayName $repo.DisplayName
