@@ -32,11 +32,11 @@ CONFIG_FILE_LINKS=("copilot-instructions.md" "lsp-config.json" "mcp-config.json"
 PORTABLE_ALLOWED_KEYS=("banner" "model" "render_markdown" "theme" "experimental" "reasoning_effort")
 
 # External skill repositories (parallel arrays)
-EXTERNAL_NAMES=("anthropic" "github")
-EXTERNAL_DISPLAY=("anthropics/skills" "github/awesome-copilot")
-EXTERNAL_REPOS=("https://github.com/anthropics/skills.git" "https://github.com/github/awesome-copilot.git")
-EXTERNAL_CLONE_DIRS=("anthropic-skills" "awesome-copilot")
-EXTERNAL_SKILLS_SUBDIRS=("skills" "skills")
+EXTERNAL_NAMES=("anthropic" "github" "msx-mcp")
+EXTERNAL_DISPLAY=("anthropics/skills" "github/awesome-copilot" "ericchansen/msx-mcp")
+EXTERNAL_REPOS=("https://github.com/anthropics/skills.git" "https://github.com/github/awesome-copilot.git" "https://github.com/ericchansen/msx-mcp.git")
+EXTERNAL_CLONE_DIRS=("anthropic-skills" "awesome-copilot" "msx-mcp")
+EXTERNAL_SKILLS_SUBDIRS=("skills" "skills" "skills")
 
 # =============================================================================
 # Summary counters

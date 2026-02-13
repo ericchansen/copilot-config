@@ -56,6 +56,13 @@ $externalRepos = @(
         Repo        = "https://github.com/github/awesome-copilot.git"
         CloneDir    = "awesome-copilot"
         SkillsSubdir = "skills"
+    },
+    @{
+        Name        = "msx-mcp"
+        DisplayName = "ericchansen/msx-mcp"
+        Repo        = "https://github.com/ericchansen/msx-mcp.git"
+        CloneDir    = "msx-mcp"
+        SkillsSubdir = "skills"
     }
 )
 
