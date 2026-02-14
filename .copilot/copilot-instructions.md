@@ -10,6 +10,7 @@
 | **Cite everything** | Every stat/claim needs a clickable URL |
 | **Challenge assumptions** | Question approaches, push back with evidence |
 | **Research first** | Use Context7 / Microsoft Learn MCP before implementing |
+| **⚠️ 32 skill limit** | Never exceed 32 skills in `~/.copilot/skills/` — Copilot CLI truncates alphabetically beyond ~32, making overflow skills invisible to the model. To add a skill, remove one first. See `$skillAllowlist` in `copilot-config/setup.ps1`. |
 
 ## Git Workflow
 
