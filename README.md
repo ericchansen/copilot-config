@@ -122,6 +122,7 @@ These skills live in `.copilot/skills/` but are excluded from the allowlist to s
 |-------|-------------|
 | `land-this-plane` | End-of-session wrap-up workflow (commit, push, PR, issues) |
 | `take-out-the-trash` | Clean up unused git branches, stale stashes, merged PRs |
+| `winapp-cli` | Windows app CLI utilities |
 
 ## Migrating from `ericchansen/skills`
 

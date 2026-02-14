@@ -93,8 +93,9 @@ $skillAllowlist = @(
     "pdf"
     "pptx"
     "xlsx"
-    # Dev workflow (5)
+    # Dev workflow (6)
     "gh-cli"
+    "github-issues"
     "mcp-builder"
     "mcp-cli"
     "nuget-manager"
@@ -109,8 +110,7 @@ $skillAllowlist = @(
     "markdown-to-html"
     "web-design-reviewer"
     "webapp-testing"
-    # Other (2)
-    "winapp-cli"
+    # Other (1)
     "workiq-copilot"
 )
 
