@@ -334,8 +334,15 @@ This repository contains useful skills including the **weekly-impact-report** sk
 
 | Skill | Description |
 |-------|-------------|
-| **git-commit-message** | Helps you write professional Git commit messages following best practices |
+| **git-commit** | Helps you write professional Git commit messages following best practices |
 | **weekly-impact-report** | Generates evidence-based weekly impact reports and **PowerPoint presentations** using WorkIQ + MSX MCP to pull your actual work data (from [msx-mcp](https://github.com/ericchansen/msx-mcp)) |
+| **monthly-opportunity-report** | Generates monthly SE Opportunity Update reports using MSX data (from [msx-mcp](https://github.com/ericchansen/msx-mcp)) |
+
+### Skill Limit
+
+> **⚠️ Important:** Copilot CLI can only "see" about **32 skills** at a time. The system prompt lists skills alphabetically and truncates at a token limit. Skills beyond the cutoff are completely invisible to the AI and won't be triggered.
+
+The setup script uses an **allowlist** (`$skillAllowlist` in `setup.ps1`) to control which skills are linked. To add a new skill, you must remove one from the allowlist first. Run `setup.ps1` again after editing the list.
 
 ### The Weekly Impact Summary Skill
 
