@@ -72,8 +72,9 @@ $externalRepos = @(
 # Skills beyond the cutoff are invisible to the model and can never be selected.
 # To add a new skill, remove one from this list first.
 $skillAllowlist = @(
-    # User-authored (2)
+    # User-authored (3)
     "git-commit"
+    "git-safety-scan"
     "summon-the-knights-of-the-round-table"
     # MSX (2) — linked from ~/repos/msx-mcp
     "monthly-opportunity-report"
@@ -100,10 +101,9 @@ $skillAllowlist = @(
     "mcp-cli"
     "nuget-manager"
     "refactor"
-    # Browser / frontend / testing (5)
+    # Browser / frontend / testing (4)
     "chrome-devtools"
     "copilot-sdk"
-    "create-web-form"
     "frontend-design"
     "image-manipulation-image-magick"
     # Web (3)

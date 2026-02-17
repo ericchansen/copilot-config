@@ -6,6 +6,7 @@
 |------|---------|
 | **Never commit broken code** | Linter + full test suite must pass first |
 | **⚠️ RUN E2E TESTS LOCALLY** | **MANDATORY before ANY push** — no exceptions |
+| **🛑 NEVER PUSH WITHOUT REVIEW** | **User must review `git diff` before ANY push** — invoke `git-safety-scan` skill |
 | **Commit locally by default** | Only push when explicitly asked |
 | **Cite everything** | Every stat/claim needs a clickable URL |
 | **Challenge assumptions** | Question approaches, push back with evidence |
@@ -52,7 +53,12 @@ git commit -m "<type>: <description>"  # Use git-commit skill
 ### Push & PR
 - **Do NOT push or create PRs unless the user explicitly asks**
 - Default is local-only: commit, but don't push
-- When asked to push:
+- **🛑 BEFORE ANY PUSH — MANDATORY REVIEW:**
+  1. **Invoke the `git-safety-scan` skill** — this scans for sensitive data
+  2. **Show `git diff origin/main..HEAD --stat` to the user** — they MUST review what's being pushed
+  3. **Ask user to confirm** — never push without explicit "yes, push it" confirmation
+  4. If scan finds issues or user doesn't confirm: **STOP — do not push**
+- When asked to push (after review):
   ```bash
   git push -u origin <branch-name>
   ```
