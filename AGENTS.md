@@ -54,12 +54,6 @@ Don't just run `git status`. Also compare `~/.copilot/` against the repo for **n
 
 MCP config uses `${VAR_NAME}` environment variable syntax. **Never hardcode API keys** in any config file. See `README.md` for required environment variables and how to set them.
 
-## Skill Limit
+## Secrets
 
-**⚠️ NEVER exceed 32 skills in `~/.copilot/skills/`.** Copilot CLI lists skills alphabetically in the system prompt and truncates at a token limit (~32 skills). Skills beyond the cutoff are completely invisible to the model and can never be auto-selected.
-
-- The `$skillAllowlist` in `setup.ps1` controls which skills are linked
-- To add a new skill, **you must remove one** from the allowlist first
-- After editing the allowlist, re-run `setup.ps1` to apply
-- Skills not on the allowlist remain in the repo but are not linked
-- Run `Get-ChildItem ~/.copilot/skills -Directory | Measure-Object` to verify count
+MCP config uses `${VAR_NAME}` environment variable syntax. **Never hardcode API keys** in any config file. See `README.md` for required environment variables and how to set them.

@@ -67,52 +67,8 @@ $externalRepos = @(
     }
 )
 
-# Skill allowlist — only these skills are linked into ~/.copilot/skills/
-# Copilot CLI has a token limit that caps visible skills at ~32.
-# Skills beyond the cutoff are invisible to the model and can never be selected.
-# To add a new skill, remove one from this list first.
-$skillAllowlist = @(
-    # User-authored (3)
-    "git-commit"
-    "git-safety-scan"
-    "summon-the-knights-of-the-round-table"
-    # MSX (2) — linked from ~/repos/msx-mcp
-    "monthly-opportunity-report"
-    "weekly-impact-report"
-    # Azure / Microsoft dev (9)
-    "appinsights-instrumentation"
-    "aspire"
-    "azure-deployment-preflight"
-    "azure-devops-cli"
-    "azure-resource-visualizer"
-    "azure-static-web-apps"
-    "microsoft-code-reference"
-    "microsoft-docs"
-    "microsoft-skill-creator"
-    # Document / content creation (4)
-    "docx"
-    "pdf"
-    "pptx"
-    "xlsx"
-    # Dev workflow (6)
-    "gh-cli"
-    "github-issues"
-    "mcp-builder"
-    "mcp-cli"
-    "nuget-manager"
-    "refactor"
-    # Browser / frontend / testing (4)
-    "chrome-devtools"
-    "copilot-sdk"
-    "frontend-design"
-    "image-manipulation-image-magick"
-    # Web (3)
-    "markdown-to-html"
-    "web-design-reviewer"
-    "webapp-testing"
-    # Other (1)
-    "workiq-copilot"
-)
+# No allowlist — link ALL discovered skills into ~/.copilot/skills/
+$useAllowlist = $false
 
 # =============================================================================
 # Counters for summary
@@ -544,11 +500,6 @@ if ($localSkills.Count -eq 0) {
     Write-Info "No local skills found in $repoSkillsDir"
 } else {
     foreach ($skill in $localSkills) {
-        if ($skill.Name -notin $skillAllowlist) {
-            Write-Info "$($skill.Name) — not in allowlist, skipping"
-            $script:summary.SkillsSkipped += $skill.Name
-            continue
-        }
         $linkPath = Join-Path $copilotSkillsHome $skill.Name
         $result = Create-DirJunction -LinkPath $linkPath -TargetPath $skill.Path -DisplayName $skill.Name -AskBeforeReplace
 
@@ -637,11 +588,6 @@ $externalToLink = @{}  # name -> skill info to link
 foreach ($skillName in ($allSkills.Keys | Sort-Object)) {
     $sources = $allSkills[$skillName]
 
-    # Skip skills not on the allowlist
-    if ($skillName -notin $skillAllowlist) {
-        continue
-    }
-
     # Already linked as local skill? Skip external.
     $localSource = $sources | Where-Object { $_.Source -eq "local" }
     $externalSources = @($sources | Where-Object { $_.Source -ne "local" })
@@ -701,14 +647,8 @@ foreach ($skillName in ($externalToLink.Keys | Sort-Object)) {
 Write-Step "Step 9: Clean up stale skill junctions"
 
 $staleCount = 0
-Get-ChildItem -Path $copilotSkillsHome -Directory | ForEach-Object {
-    $isLink = $_.Attributes -band [System.IO.FileAttributes]::ReparsePoint
-    if ($isLink -and $_.Name -notin $skillAllowlist) {
-        cmd /c rmdir "$($_.FullName)" 2>&1 | Out-Null
-        Write-Success "Removed stale junction: $($_.Name)"
-        $staleCount++
-    }
-}
+# Stale cleanup disabled — no allowlist filtering
+Write-Info "Stale junction cleanup skipped (no allowlist)"
 
 if ($staleCount -eq 0) {
     Write-Info "No stale junctions to clean up"
@@ -753,7 +693,7 @@ $skippedCount = $script:summary.SkillsSkipped.Count
 $failedCount  = $script:summary.SkillsFailed.Count
 
 Write-Host ""
-Write-Color "  Skills (allowlist: $($skillAllowlist.Count) max):" "Cyan"
+Write-Color "  Skills (no allowlist — all linked):" "Cyan"
 if ($createdCount -gt 0) { Write-Color "    Created:        $createdCount" "Green" }
 if ($existedCount -gt 0) { Write-Color "    Already linked: $existedCount" "Cyan" }
 if ($skippedCount -gt 0) { Write-Color "    Skipped:        $skippedCount" "Yellow" }

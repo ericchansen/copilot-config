@@ -36,19 +36,10 @@ The setup script will:
 - Back up your existing `~/.copilot/` config
 - Symlink instructions, MCP config, and skills into `~/.copilot/`
 - Patch your `config.json` with portable settings (without touching auth)
-- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/github/awesome-copilot)) and link those skills too
-- **Only link skills on the allowlist** (32 max — see [Skill Limit](#skill-limit) below)
-- Clean up stale junctions for skills no longer on the allowlist
+- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/github/awesome-copilot), [msx-mcp](https://github.com/ericchansen/msx-mcp)) and link those skills too
+- Link all discovered skills into `~/.copilot/skills/`
 
 Run the setup script again at any time to pull updates and re-sync.
-
-## Skill Limit
-
-> **⚠️ Copilot CLI can only "see" ~32 skills at a time.** Skills are listed alphabetically in the system prompt, and a token limit truncates the list. Skills beyond the cutoff are invisible to the model and can never be auto-selected.
-
-To manage this, `setup.ps1` uses a `$skillAllowlist` array. Only skills on the list get linked into `~/.copilot/skills/`. To add a new skill, you must remove an existing one from the allowlist.
-
-The allowlist currently has **32 skills** from 4 sources (user-authored, msx-mcp, anthropic, awesome-copilot). Edit the `$skillAllowlist` in `setup.ps1` to customize.
 
 ## Environment Variables
 
@@ -113,16 +104,6 @@ Multi-model brainstorming using GPT-5.2-Codex and Gemini 3 Pro. Gathers context,
 Evidence-based weekly impact reports via [WorkIQ](https://github.com/microsoft/work-iq-mcp) + [msx-mcp](https://github.com/ericchansen/msx-mcp) integration. Pulls M365 activity data (meetings, emails, chats) and MSX deal context, focusing on measurable business outcomes rather than activity lists. Now lives in the msx-mcp repo.
 
 **Trigger:** "weekly report", "impact report", "what did I work on this week"
-
-### Inactive Skills (in repo but not linked)
-
-These skills live in `.copilot/skills/` but are excluded from the allowlist to stay within the 32-skill limit. Add them to the `$skillAllowlist` in `setup.ps1` (and remove another skill) to re-enable.
-
-| Skill | Description |
-|-------|-------------|
-| `land-this-plane` | End-of-session wrap-up workflow (commit, push, PR, issues) |
-| `take-out-the-trash` | Clean up unused git branches, stale stashes, merged PRs |
-| `winapp-cli` | Windows app CLI utilities |
 
 ## Migrating from `ericchansen/skills`
 

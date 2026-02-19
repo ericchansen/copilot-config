@@ -7,19 +7,22 @@
 | **Never commit broken code** | Linter + full test suite must pass first |
 | **⚠️ RUN E2E TESTS LOCALLY** | **MANDATORY before ANY push** — no exceptions |
 | **🛑 NEVER PUSH WITHOUT REVIEW** | **User must review `git diff` before ANY push** — invoke `git-safety-scan` skill |
+| **🚫 Never push to main/master** | Always use feature branches and submit work via PRs |
 | **Commit locally by default** | Only push when explicitly asked |
 | **Cite everything** | Every stat/claim needs a clickable URL |
 | **Challenge assumptions** | Question approaches, push back with evidence |
 | **Research first** | Use Context7 / Microsoft Learn MCP before implementing |
-| **⚠️ 32 skill limit** | Never exceed 32 skills in `~/.copilot/skills/` — Copilot CLI truncates alphabetically beyond ~32, making overflow skills invisible to the model. To add a skill, remove one first. See `$skillAllowlist` in `copilot-config/setup.ps1`. |
+
 
 ## Git Workflow
 
 **Prefixes:** `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `perf`
 
 ### Branching
+- **NEVER commit directly to `main` or `master`** — always use a feature branch
 - Follow repo-specific instructions (AGENTS.md, CONTRIBUTING.md, etc.)
 - If no repo guidance exists, use feature branches: `git checkout -b <type>/<short-description>`
+- If you find yourself on `main`/`master`, create a branch BEFORE committing
 
 ### During Development
 - Run tests after each logical change—catch failures early
@@ -53,6 +56,7 @@ git commit -m "<type>: <description>"  # Use git-commit skill
 ### Push & PR
 - **Do NOT push or create PRs unless the user explicitly asks**
 - Default is local-only: commit, but don't push
+- **🛑 NEVER push directly to `main` or `master`** — always push a feature branch and open a PR
 - **🛑 BEFORE ANY PUSH — MANDATORY REVIEW:**
   1. **Invoke the `git-safety-scan` skill** — this scans for sensitive data
   2. **Show `git diff origin/main..HEAD --stat` to the user** — they MUST review what's being pushed
@@ -62,7 +66,8 @@ git commit -m "<type>: <description>"  # Use git-commit skill
   ```bash
   git push -u origin <branch-name>
   ```
-- Only create a PR if the user asks for one
+- **Always offer to create a PR** after pushing a branch — submit work via PRs, not direct pushes
+- If the upstream repo is not owned by the user (e.g., a Microsoft org repo), fork first, then open a PR from the fork
 
 ### Clean Commit History (No Merge Commits)
 - **Prefer linear history** — avoid merge commits when possible
