@@ -298,7 +298,7 @@ Think of skills as instruction manuals that Copilot reads before helping you wit
 
 ### Installing Skills from This Repository
 
-This repository contains useful skills including the **weekly-impact-report** skill (from [msx-mcp](https://github.com/ericchansen/msx-mcp)) that generates PowerPoint presentations of your weekly achievements. To install them:
+This repository contains useful skills. To install them:
 
 1. **Clone this repository** (if you haven't already):
 
@@ -335,8 +335,7 @@ This repository contains useful skills including the **weekly-impact-report** sk
 | Skill | Description |
 |-------|-------------|
 | **git-commit** | Helps you write professional Git commit messages following best practices |
-| **weekly-impact-report** | Generates evidence-based weekly impact reports and **PowerPoint presentations** using WorkIQ + MSX MCP to pull your actual work data (from [msx-mcp](https://github.com/ericchansen/msx-mcp)) |
-| **monthly-opportunity-report** | Generates monthly SE Opportunity Update reports using MSX data (from [msx-mcp](https://github.com/ericchansen/msx-mcp)) |
+
 
 ### Skill Limit
 

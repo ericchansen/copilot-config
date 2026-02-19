@@ -36,7 +36,7 @@ The setup script will:
 - Back up your existing `~/.copilot/` config
 - Symlink instructions, MCP config, and skills into `~/.copilot/`
 - Patch your `config.json` with portable settings (without touching auth)
-- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/github/awesome-copilot), [msx-mcp](https://github.com/ericchansen/msx-mcp)) and link those skills too
+- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/github/awesome-copilot)) and link those skills too
 - Link all discovered skills into `~/.copilot/skills/`
 
 Run the setup script again at any time to pull updates and re-sync.
@@ -99,11 +99,6 @@ Conventional commit messages with [Chris Beams' 7 rules](https://cbea.ms/git-com
 Multi-model brainstorming using GPT-5.2-Codex and Gemini 3 Pro. Gathers context, frames a question, queries both models for divergent perspectives, then synthesizes a consensus with agreed conclusions, resolved disagreements, and recommended actions.
 
 **Trigger:** "summon knights of the round table to review..."
-
-### weekly-impact-report
-Evidence-based weekly impact reports via [WorkIQ](https://github.com/microsoft/work-iq-mcp) + [msx-mcp](https://github.com/ericchansen/msx-mcp) integration. Pulls M365 activity data (meetings, emails, chats) and MSX deal context, focusing on measurable business outcomes rather than activity lists. Now lives in the msx-mcp repo.
-
-**Trigger:** "weekly report", "impact report", "what did I work on this week"
 
 ## Migrating from `ericchansen/skills`
 
