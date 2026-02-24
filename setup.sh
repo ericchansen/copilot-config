@@ -341,25 +341,11 @@ clone_or_pull_repo() {
             write_info "$display_name — remote updated to $auth_method"
         fi
 
-        # Ensure we're on the default branch before pulling
-        local current_branch default_branch=""
+        # Pull the current branch (don't force checkout — respect user's branch choice)
+        local current_branch
         current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
-        local sym_ref
-        sym_ref=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || true)
-        if [[ "$sym_ref" =~ refs/remotes/origin/(.+)$ ]]; then
-            default_branch="${BASH_REMATCH[1]}"
-        fi
-        if [[ -z "$default_branch" ]]; then
-            if git rev-parse --verify main &>/dev/null; then
-                default_branch="main"
-            elif git rev-parse --verify master &>/dev/null; then
-                default_branch="master"
-            fi
-        fi
-        if [[ -n "$default_branch" && "$current_branch" != "$default_branch" ]]; then
-            if ! git checkout "$default_branch" --quiet 2>/dev/null; then
-                write_warn "$display_name — failed to checkout $default_branch, pulling current branch"
-            fi
+        if [[ -n "$current_branch" ]]; then
+            write_info "$display_name — on branch $current_branch"
         fi
 
         if git pull --quiet 2>/dev/null; then
@@ -368,6 +354,40 @@ clone_or_pull_repo() {
         else
             write_warn "$display_name — failed to pull (may be offline)"
             popd > /dev/null
+
+            # Interactive recovery for pull failures
+            if [[ "$NON_INTERACTIVE" != "true" ]]; then
+                echo ""
+                echo "    [C] Continue       — use existing local copy (default)"
+                echo "    [R] Retry          — try pulling again"
+                echo "    [S] Skip           — skip this repo entirely"
+                echo "    [A] Abort          — stop processing remaining repos"
+                echo ""
+                while true; do
+                    read -rp "    Choice [C/r/s/a]: " choice
+                    choice=$(echo "${choice:-c}" | tr '[:upper:]' '[:lower:]')
+                    case "$choice" in
+                        a) FUNC_RESULT="aborted"; return ;;
+                        s) FUNC_RESULT="skipped"; return ;;
+                        r)
+                            pushd "$target_path" > /dev/null
+                            if git pull --quiet 2>/dev/null; then
+                                popd > /dev/null
+                                FUNC_RESULT="pulled"
+                                return
+                            fi
+                            popd > /dev/null
+                            write_warn "$display_name — pull failed again"
+                            continue
+                            ;;
+                        *)
+                            FUNC_RESULT="pull-failed"
+                            return
+                            ;;
+                    esac
+                done
+            fi
+
             FUNC_RESULT="pull-failed"
         fi
         return
@@ -904,6 +924,9 @@ while IFS= read -r repo_json; do
         aborted)
             write_warn "$display_name — aborting remaining external repo clones"
             ABORT_REMAINING_EXTERNAL=true ;;
+        pull-failed)
+            write_warn "$display_name — using existing local copy (pull failed)"
+            SUMMARY_EXTERNAL_FAILED+=("$display_name") ;;
         *failed*)
             write_err "$display_name — $FUNC_RESULT"
             SUMMARY_EXTERNAL_FAILED+=("$display_name")
