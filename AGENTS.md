@@ -9,9 +9,8 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 ## Git Workflow
 
 - **Default branch:** `master`
-- **Push directly to `master`** — no feature branches, no PRs. This is a personal config repo.
+- Follow the global branching rules — use feature branches and PRs.
 - **No tests or CI** — just commit and push.
-- The global `copilot-instructions.md` defaults to feature branches (`git checkout -b <type>/<short-description>`) when no repo guidance exists — this repo **overrides** that. AGENTS.md takes precedence over user-level instructions.
 
 ## File Layout
 
@@ -22,19 +21,17 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 | `.copilot/lsp-config.json` | LSP server configuration | → `~/.copilot/lsp-config.json` |
 | `.copilot/config.portable.json` | Portable settings (model, theme, etc.) | **No** — patched into `config.json` |
 | `.copilot/skills/` | Custom skills | Directory junctions |
-| `external/` | Cloned external skill repos (repos without `LocalPath`) | — |
-| `setup.ps1` / `setup.sh` | Install: symlink configs, patch settings, clone externals, link skills | — |
-| `restore.ps1` / `restore.sh` | Uninstall: remove symlinks, optionally restore backups | — |
-| `sync-skills.ps1` / `sync-skills.sh` | Adopt untracked skills from `~/.copilot/skills/` | — |
+| `external/` | Cloned external skill repos (default location) | — |
+| `setup.ps1` | Install: symlink configs, patch settings, clone externals, link skills | — |
+| `restore.ps1` | Uninstall: remove symlinks, optionally restore backups | — |
+| `sync-skills.ps1` | Adopt untracked skills from `~/.copilot/skills/` | — |
 
 ## Adding a New Tracked Config File
 
-Update **4 places** across the two setup scripts:
+Update **2 places** in `setup.ps1`:
 
-1. `$configFileLinks` array in `setup.ps1`
-2. `CONFIG_FILE_LINKS` array in `setup.sh`
-3. Backup file list (`$configFiles`) in `setup.ps1`
-4. Backup file list (`for f in ...`) in `setup.sh`
+1. `$configFileLinks` array
+2. Backup file list (`$configFiles`)
 
 Then copy the file into `.copilot/`, replace the original in `~/.copilot/` with a symlink, and update `README.md`.
 
@@ -49,10 +46,6 @@ Don't just run `git status`. Also compare `~/.copilot/` against the repo for **n
 ~/.copilot/lsp-config.json      # should be symlink → repo
 ~/.copilot/skills/*             # should be directory junctions → repo or external/
 ```
-
-## Secrets
-
-MCP config uses `${VAR_NAME}` environment variable syntax. **Never hardcode API keys** in any config file. See `README.md` for required environment variables and how to set them.
 
 ## Secrets
 

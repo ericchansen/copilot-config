@@ -1,0 +1,64 @@
+{
+  "servers": [
+    {
+      "name": "azure-mcp",
+      "category": "base",
+      "type": "npx",
+      "package": "@azure/mcp@latest",
+      "args": ["server", "start"],
+      "tools": ["*"]
+    },
+    {
+      "name": "context7",
+      "category": "base",
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "tools": ["query-docs", "resolve-library-id"],
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      },
+      "envVars": ["CONTEXT7_API_KEY"]
+    },
+    {
+      "name": "microsoft-learn",
+      "category": "base",
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "tools": ["*"]
+    },
+    {
+      "name": "playwright",
+      "category": "base",
+      "type": "npx",
+      "package": "@playwright/mcp@latest",
+      "args": ["--browser", "msedge"],
+      "tools": ["*"]
+    },
+    {
+      "name": "chrome-devtools",
+      "category": "base",
+      "type": "npx",
+      "package": "chrome-devtools-mcp@latest",
+      "tools": ["*"]
+    },
+    {
+      "name": "msx-mcp",
+      "category": "work",
+      "type": "local",
+      "command": "node",
+      "entryPoint": "dist/index.js",
+      "cloneDir": "msx-mcp",
+      "repo": "https://github.com/ericchansen/msx-mcp.git",
+      "build": ["npm install", "npm run build"],
+      "tools": ["*"],
+      "defaultPaths": ["~/repos/msx-mcp"]
+    },
+    {
+      "name": "powerbi-remote",
+      "category": "powerbi",
+      "type": "http",
+      "url": "https://api.fabric.microsoft.com/v1/mcp/powerbi",
+      "tools": ["*"]
+    }
+  ]
+}

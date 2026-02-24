@@ -13,6 +13,8 @@ $ownedRoots = @(
     [System.IO.Path]::GetFullPath($repoRoot),
     [System.IO.Path]::GetFullPath((Join-Path $env:USERPROFILE "repos\skills")),
     [System.IO.Path]::GetFullPath((Join-Path $env:USERPROFILE "repos\copilot-config")),
+    [System.IO.Path]::GetFullPath((Join-Path $env:USERPROFILE "repos\msx-mcp")),
+    [System.IO.Path]::GetFullPath((Join-Path $env:USERPROFILE "repos\SPT-IQ")),
     [System.IO.Path]::GetFullPath($externalDir)
 ) | Select-Object -Unique
 
