@@ -1212,6 +1212,10 @@ while IFS= read -r server_json; do
 done < <(echo "$ENABLED_SERVERS" | jq -c '.[]')
 
 MCP_CONFIG_PATH="$COPILOT_HOME/mcp-config.json"
+# Remove stale symlink so redirect can create a regular file
+if [ -L "$MCP_CONFIG_PATH" ]; then
+    rm -f "$MCP_CONFIG_PATH"
+fi
 echo "$MCP_CONFIG" | jq '.' > "$MCP_CONFIG_PATH"
 write_success "Generated $MCP_CONFIG_PATH ($ENABLED_COUNT servers)"
 SUMMARY_MCP_GENERATED=true

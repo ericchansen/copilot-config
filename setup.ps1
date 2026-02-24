@@ -1277,6 +1277,13 @@ foreach ($server in $enabledServers) {
 }
 
 $mcpConfigPath = Join-Path $copilotHome "mcp-config.json"
+# Remove stale symlink so Set-Content can create a regular file
+if (Test-Path $mcpConfigPath) {
+    $item = Get-Item $mcpConfigPath -Force
+    if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        Remove-Item $mcpConfigPath -Force
+    }
+}
 $mcpConfig | ConvertTo-Json -Depth 10 | Set-Content $mcpConfigPath -Encoding UTF8
 Write-Success "Generated $mcpConfigPath ($($enabledServers.Count) servers)"
 $script:summary.McpConfigGenerated = $true
