@@ -48,7 +48,7 @@
       "command": "node",
       "entryPoint": "dist/index.js",
       "cloneDir": "msx-mcp",
-      "repo": "https://github.com/ericchansen/msx-mcp.git",
+      "repo": "https://github.com/mcaps-microsoft/MSX-MCP.git",
       "build": ["npm install", "npm run build"],
       "tools": ["*"],
       "defaultPaths": ["~/repos/msx-mcp"]
