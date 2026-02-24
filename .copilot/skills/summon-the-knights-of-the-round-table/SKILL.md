@@ -1,6 +1,6 @@
 ---
 name: summon-the-knights-of-the-round-table
-description: "Multi-model brainstorming to challenge assumptions and reach consensus. Use when needing to double-check work, validate plans, or get diverse perspectives on decisions. Invokes Claude Opus 4.5, GPT-5.2-Codex, and Gemini 3 Pro with randomized roles to debate and find common ground."
+description: "Multi-model brainstorming to challenge assumptions and reach consensus. Use when needing to double-check work, validate plans, or get diverse perspectives on decisions. Invokes Claude Opus 4.6, GPT-5.3-Codex, and Gemini 3 Pro with randomized roles to debate and find common ground."
 ---
 
 # Summon Knights of the Round Table
@@ -13,8 +13,8 @@ Three models sit at the round table:
 
 | Knight | Model ID |
 |--------|----------|
-| **Claude Opus** | `claude-opus-4.5` |
-| **GPT-5.2-Codex** | `gpt-5.2-codex` |
+| **Claude Opus** | `claude-opus-4.6` |
+| **GPT-5.3-Codex** | `gpt-5.3-codex` |
 | **Gemini 3 Pro** | `gemini-3-pro-preview` |
 
 ## Workflow
@@ -50,12 +50,12 @@ The three roles are:
 
 | # | Devil's Advocate | Explorer | Steelman |
 |---|-----------------|----------|----------|
-| 0 | Claude Opus | GPT-5.2-Codex | Gemini 3 Pro |
-| 1 | Claude Opus | Gemini 3 Pro | GPT-5.2-Codex |
-| 2 | GPT-5.2-Codex | Claude Opus | Gemini 3 Pro |
-| 3 | GPT-5.2-Codex | Gemini 3 Pro | Claude Opus |
-| 4 | Gemini 3 Pro | Claude Opus | GPT-5.2-Codex |
-| 5 | Gemini 3 Pro | GPT-5.2-Codex | Claude Opus |
+| 0 | Claude Opus | GPT-5.3-Codex | Gemini 3 Pro |
+| 1 | Claude Opus | Gemini 3 Pro | GPT-5.3-Codex |
+| 2 | GPT-5.3-Codex | Claude Opus | Gemini 3 Pro |
+| 3 | GPT-5.3-Codex | Gemini 3 Pro | Claude Opus |
+| 4 | Gemini 3 Pro | Claude Opus | GPT-5.3-Codex |
+| 5 | Gemini 3 Pro | GPT-5.3-Codex | Claude Opus |
 
 **Announce the role assignments** at the start so the user can see which knight drew which role.
 

@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: 'Execute git commit with conventional commit message analysis, intelligent staging, and message generation. Use when user asks to commit changes, create a git commit, or mentions "/commit". Supports: (1) Auto-detecting type and scope from changes, (2) Generating conventional commit messages from diff, (3) Interactive commit with optional type/scope/description overrides, (4) Intelligent file staging for logical grouping'
+description: 'Execute git commit with conventional commit message analysis, intelligent staging, and message generation. Use when user asks to commit changes, create a git commit, push code, create a PR, or mentions "/commit". Supports: (1) Auto-detecting type and scope from changes, (2) Generating conventional commit messages from diff, (3) Interactive commit with optional type/scope/description overrides, (4) Intelligent file staging for logical grouping, (5) Respecting repository contribution guidelines'
 license: MIT
 allowed-tools: Bash
 ---
@@ -8,6 +8,14 @@ allowed-tools: Bash
 # Git Commit with Conventional Commits
 
 Create standardized, semantic git commits using the Conventional Commits specification combined with Chris Beams' seven rules. Analyze the actual diff to determine appropriate type, scope, and message.
+
+## Pre-Flight: Repository Contribution Guidelines
+
+Before committing, check the repository for contribution guidance:
+
+1. **Search for guidelines** in: `CONTRIBUTING.md`, `AGENTS.md`, `README.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`
+2. **If found**: follow the repo's conventions for commit messages, branch naming, and PR format. Repo rules override the defaults below.
+3. **Ensure you're on a feature branch** — never commit to `main`/`master`. If on the default branch, create a branch first: `git checkout -b <type>/<short-description>`
 
 ## Conventional Commit Format
 

@@ -1,3 +1,8 @@
+---
+name: git-safety-scan
+description: "Scan staged changes or commits for sensitive data before pushing to remote. Use when pushing code, creating PRs, or before any git push. Detects API keys, tokens, passwords, connection strings, private keys, PII, and custom blocklist terms. MANDATORY before ANY push — invoke automatically."
+---
+
 # Git Safety Scan
 
 Scan staged changes or commits for sensitive data before pushing to remote.

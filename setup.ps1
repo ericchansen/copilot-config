@@ -1,18 +1,37 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Setup script for Copilot CLI configuration, skills, and external repos.
+    Setup script for Copilot CLI configuration, skills, MCP servers, and external repos.
 
 .DESCRIPTION
     Backs up existing ~/.copilot/ config, symlinks config files, patches config.json
     with portable settings, symlinks local custom skills, clones/pulls external skill
-    repos, and links their skills into ~/.copilot/skills/.
+    repos, links their skills into ~/.copilot/skills/, builds local MCP servers,
+    validates env vars, and generates ~/.copilot/mcp-config.json.
 
     Idempotent — safe to re-run at any time.
 
+.PARAMETER WorkSkills
+    Include optional work-specific skill repos and MCP servers (msx-mcp, SPT-IQ).
+
+.PARAMETER PowerBI
+    Include Power BI Remote MCP server.
+
+.PARAMETER NonInteractive
+    Run without prompts (safe for cron jobs). Defaults: skip work skills,
+    skip replacing real dirs with junctions.
+
 .EXAMPLE
     ./setup.ps1
+    ./setup.ps1 -WorkSkills -PowerBI
+    ./setup.ps1 -NonInteractive -WorkSkills
 #>
+param(
+    [switch]$WorkSkills,
+    [switch]$PowerBI,
+    [switch]$CleanOrphans,
+    [switch]$NonInteractive
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -23,17 +42,22 @@ $repoRoot = $PSScriptRoot
 $repoCopilotDir = Join-Path $repoRoot ".copilot"
 $repoSkillsDir = Join-Path $repoCopilotDir "skills"
 $externalDir = Join-Path $repoRoot "external"
+$mcpServersJsonPath = Join-Path $repoRoot "mcp-servers.json"
 
 $copilotHome = Join-Path $env:USERPROFILE ".copilot"
 $copilotSkillsHome = Join-Path $copilotHome "skills"
 $configJsonPath = Join-Path $copilotHome "config.json"
 $portableJsonPath = Join-Path $repoCopilotDir "config.portable.json"
 
+# Git auth state (populated by preflight check)
+$script:ghAvailable = $false
+$script:sshAvailable = $false
+$script:preferSsh = $false
+
 # Config files to symlink (file symlinks)
 $configFileLinks = @(
     @{ Name = "copilot-instructions.md" },
-    @{ Name = "lsp-config.json" },
-    @{ Name = "mcp-config.json" }
+    @{ Name = "lsp-config.json" }
 )
 
 # Keys allowed to be patched from config.portable.json into config.json
@@ -49,18 +73,88 @@ $externalRepos = @(
         Repo        = "https://github.com/anthropics/skills.git"
         CloneDir    = "anthropic-skills"
         SkillsSubdir = "skills"
-    },
+        Category    = "base"
+        Exclude     = @(
+            "skill-creator", "mcp-builder", "algorithmic-art", "brand-guidelines",
+            "canvas-design", "doc-coauthoring", "internal-comms", "slack-gif-creator"
+        )
+    }
     @{
         Name        = "github"
         DisplayName = "github/awesome-copilot"
         Repo        = "https://github.com/github/awesome-copilot.git"
         CloneDir    = "awesome-copilot"
         SkillsSubdir = "skills"
-    },
+        Category    = "base"
+        Exclude     = @(
+            "git-commit", "make-repo-contribution", "copilot-cli-quickstart",
+            "microsoft-docs", "microsoft-skill-creator",
+            "agentic-eval", "finnish-humanizer", "legacy-circuit-mockups",
+            "nano-banana-pro-openrouter", "penpot-uiux-design", "scoutqa-test",
+            "snowflake-semanticview", "pdftk-server", "sponsor-finder",
+            "plantuml-ascii", "prd", "meeting-minutes", "webapp-testing"
+        )
+    }
 )
 
-# No allowlist — link ALL discovered skills into ~/.copilot/skills/
-$useAllowlist = $false
+# Optional work-specific repos (included via -WorkSkills flag or interactive prompt)
+$optionalRepos = @(
+    @{
+        Name        = "msx-mcp"
+        DisplayName = "ericchansen/msx-mcp"
+        Repo        = "https://github.com/ericchansen/msx-mcp.git"
+        CloneDir    = "msx-mcp"
+        SkillsSubdir = "skills"
+        Category    = "work"
+        Exclude     = @()
+    }
+    @{
+        Name        = "spt-iq"
+        DisplayName = "ericchansen/SPT-IQ"
+        Repo        = "https://github.com/ericchansen/SPT-IQ.git"
+        CloneDir    = "SPT-IQ"
+        SkillsSubdir = "skills"
+        Category    = "work"
+        Exclude     = @()
+    }
+)
+
+# Resolve whether to include optional work repos
+$includeWorkSkills = $false
+if ($WorkSkills) {
+    $includeWorkSkills = $true
+} elseif (-not $NonInteractive) {
+    $answer = Read-Host "  Include work-specific skills (msx-mcp, SPT-IQ)? [y/N]"
+    if ($answer -eq "y" -or $answer -eq "Y") {
+        $includeWorkSkills = $true
+    }
+}
+
+if ($includeWorkSkills) {
+    $externalRepos = $externalRepos + $optionalRepos
+}
+
+# Resolve whether to include Power BI
+$includePowerBI = $false
+if ($PowerBI) {
+    $includePowerBI = $true
+} elseif (-not $NonInteractive) {
+    $answer = Read-Host "  Include Power BI Remote MCP server? [y/N]"
+    if ($answer -eq "y" -or $answer -eq "Y") {
+        $includePowerBI = $true
+    }
+}
+
+# Resolve whether to clean orphan skills
+$includeCleanOrphans = $false
+if ($CleanOrphans) {
+    $includeCleanOrphans = $true
+} elseif (-not $NonInteractive) {
+    $answer = Read-Host "  Remove skills not managed by this repo? [y/N]"
+    if ($answer -eq "y" -or $answer -eq "Y") {
+        $includeCleanOrphans = $true
+    }
+}
 
 # =============================================================================
 # Counters for summary
@@ -80,6 +174,10 @@ $script:summary = [ordered]@{
     ExternalPulled    = @()
     ExternalFailed    = @()
     ConflictsResolved = @()
+    McpServersBuilt   = @()
+    McpServersFailed  = @()
+    McpEnvMissing     = @()
+    McpConfigGenerated = $false
 }
 
 # =============================================================================
@@ -147,8 +245,11 @@ function Create-FileSymlink {
             # Wrong target — remove and re-create
             Remove-Item $LinkPath -Force
         } else {
-            # Real file exists — ask user
+            # Real file exists — ask user (skip in non-interactive mode)
             Write-Warn "$DisplayName already exists as a real file at $LinkPath"
+            if ($NonInteractive) {
+                return "skipped"
+            }
             $answer = Read-Host "    Replace with symlink? [y/N]"
             if ($answer -ne "y" -and $answer -ne "Y") {
                 return "skipped"
@@ -222,12 +323,56 @@ function Clone-Or-Pull-Repo {
     param(
         [string]$RepoUrl,
         [string]$TargetPath,
-        [string]$DisplayName
+        [string]$DisplayName,
+        [string]$Category = "base"
     )
+
+    # Resolve preferred URL (SSH when available, else original HTTPS)
+    $cloneUrl = if ($script:preferSsh -and $RepoUrl -match "^https://github\.com/(.+)$") {
+        "git@github.com:$($Matches[1])"
+    } else { $RepoUrl }
+    $authMethod = if ($cloneUrl -match "^git@") { "SSH" } else { "HTTPS" }
 
     if (Test-Path (Join-Path $TargetPath ".git")) {
         Push-Location $TargetPath
         try {
+            # Validate repo identity before touching anything
+            $currentRemote = git remote get-url origin 2>$null
+            if ($currentRemote) {
+                $expectedSlug = if ($RepoUrl -match "github\.com[:/](.+?)(?:\.git)?$") { $Matches[1] } else { $null }
+                $actualSlug   = if ($currentRemote -match "github\.com[:/](.+?)(?:\.git)?$") { $Matches[1] } else { $null }
+                if ($expectedSlug -and $actualSlug -and $expectedSlug -ne $actualSlug) {
+                    Write-Err "$DisplayName — path contains a different repo ($actualSlug, expected $expectedSlug)"
+                    return "identity-check-failed"
+                }
+            }
+
+            # Upgrade remote to SSH if preferred and currently HTTPS
+            if ($currentRemote -and $currentRemote -ne $cloneUrl -and $script:preferSsh) {
+                git remote set-url origin $cloneUrl 2>$null
+                Write-Info "$DisplayName — remote updated to $authMethod"
+            }
+
+            # Ensure we're on the default branch before pulling
+            $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
+            $defaultBranch = $null
+            # Try symbolic-ref first (authoritative remote default)
+            $symRef = git symbolic-ref refs/remotes/origin/HEAD 2>$null
+            if ($symRef -match "refs/remotes/origin/(.+)$") {
+                $defaultBranch = $Matches[1]
+            }
+            # Fall back: check which of main/master exists locally
+            if (-not $defaultBranch) {
+                if (git rev-parse --verify main 2>$null) { $defaultBranch = "main" }
+                elseif (git rev-parse --verify master 2>$null) { $defaultBranch = "master" }
+            }
+            if ($defaultBranch -and $currentBranch -ne $defaultBranch) {
+                git checkout $defaultBranch --quiet 2>&1 | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warn "$DisplayName — failed to checkout $defaultBranch, pulling current branch"
+                }
+            }
+
             git pull --quiet 2>&1 | Out-Null
             if ($LASTEXITCODE -ne 0) {
                 Write-Warn "$DisplayName — failed to pull (may be offline)"
@@ -240,16 +385,152 @@ function Clone-Or-Pull-Repo {
     } else {
         $parentDir = Split-Path $TargetPath -Parent
         Ensure-Directory $parentDir
-        git clone --quiet $RepoUrl $TargetPath 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
+
+        :cloneLoop while ($true) {
+            # Clean up partial clone directory from prior failed attempt
+            if (Test-Path $TargetPath) {
+                if (-not (Test-Path (Join-Path $TargetPath ".git"))) {
+                    Remove-Item $TargetPath -Recurse -Force -ErrorAction SilentlyContinue
+                } else {
+                    # Already a valid repo (user cloned manually between retries?)
+                    return "cloned"
+                }
+            }
+
+            Write-Info "$DisplayName — cloning via $authMethod ($Category)"
+            $attemptedMethods = @()
+
+            # Try preferred URL first
+            git clone --quiet $cloneUrl $TargetPath 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                return "cloned"
+            }
+            $attemptedMethods += "git clone ($authMethod)"
+            # Clean up failed partial clone
+            if (Test-Path $TargetPath) { Remove-Item $TargetPath -Recurse -Force -ErrorAction SilentlyContinue }
+
+            # Try gh CLI with auth token (no browser, no prompts)
+            if ($script:ghAvailable -and $RepoUrl -match "github\.com/([^/]+/[^/]+?)(?:\.git)?$") {
+                Write-Warn "$DisplayName — $authMethod clone failed, trying gh CLI..."
+                $repoSlug = $Matches[1]
+                $ghToken = gh auth token 2>$null
+                if ($ghToken) {
+                    $savedEnv = @{
+                        GH_TOKEN           = $env:GH_TOKEN
+                        GH_PROMPT_DISABLED = $env:GH_PROMPT_DISABLED
+                        GCM_INTERACTIVE    = $env:GCM_INTERACTIVE
+                    }
+                    try {
+                        $env:GH_TOKEN = $ghToken
+                        $env:GH_PROMPT_DISABLED = "1"
+                        $env:GCM_INTERACTIVE = "never"
+                        $null = "" | gh repo clone $repoSlug $TargetPath 2>&1
+                    } finally {
+                        foreach ($k in $savedEnv.Keys) {
+                            if ($null -eq $savedEnv[$k]) {
+                                Remove-Item "Env:$k" -ErrorAction SilentlyContinue
+                            } else {
+                                Set-Item "Env:$k" $savedEnv[$k]
+                            }
+                        }
+                    }
+                    if ($LASTEXITCODE -eq 0) {
+                        return "cloned"
+                    }
+                } else {
+                    Write-Warn "$DisplayName — gh CLI not authenticated, skipping gh clone"
+                }
+                $attemptedMethods += "gh repo clone"
+                if (Test-Path $TargetPath) { Remove-Item $TargetPath -Recurse -Force -ErrorAction SilentlyContinue }
+            }
+
+            # Final fallback: HTTPS with token auth, no browser/terminal prompts
+            if ($cloneUrl -ne $RepoUrl) {
+                Write-Warn "$DisplayName — falling back to HTTPS (token-only, no browser)..."
+                $savedEnv = @{
+                    GIT_TERMINAL_PROMPT = $env:GIT_TERMINAL_PROMPT
+                    GCM_INTERACTIVE     = $env:GCM_INTERACTIVE
+                    GH_TOKEN            = $env:GH_TOKEN
+                }
+                try {
+                    $env:GIT_TERMINAL_PROMPT = "0"
+                    $env:GCM_INTERACTIVE = "never"
+                    # If gh is authenticated, inject token into HTTPS URL for git
+                    $httpsUrl = $RepoUrl
+                    $ghToken = if ($script:ghAvailable) { gh auth token 2>$null } else { $null }
+                    if ($ghToken -and $RepoUrl -match "^https://github\.com/") {
+                        $httpsUrl = $RepoUrl -replace "^https://", "https://x-access-token:$($ghToken)@"
+                    }
+                    git clone --quiet $httpsUrl $TargetPath 2>&1 | Out-Null
+                } finally {
+                    foreach ($k in $savedEnv.Keys) {
+                        if ($null -eq $savedEnv[$k]) {
+                            Remove-Item "Env:$k" -ErrorAction SilentlyContinue
+                        } else {
+                            Set-Item "Env:$k" $savedEnv[$k]
+                        }
+                    }
+                }
+                if ($LASTEXITCODE -eq 0) {
+                    return "cloned"
+                }
+                $attemptedMethods += "git clone (HTTPS token-only)"
+                if (Test-Path $TargetPath) { Remove-Item $TargetPath -Recurse -Force -ErrorAction SilentlyContinue }
+            }
+
+            # Interactive recovery
+            if (-not $NonInteractive) {
+                Write-Host ""
+                Write-Warn "Failed to clone $DisplayName after: $($attemptedMethods -join ', ')"
+                Write-Host ""
+                Write-Color "    [R] Retry          — try again (fix auth in another terminal first)" "White"
+                Write-Color "    [L] Login & retry  — run 'gh auth login' then retry" "White"
+                Write-Color "    [M] Manual clone   — you clone it yourself, tell me the path" "White"
+                Write-Color "    [S] Skip           — skip this repo, continue with others" "White"
+                Write-Color "    [A] Abort          — stop cloning remaining repos" "White"
+                Write-Host ""
+                $choice = Read-Host "    Choice [R/l/m/s/a]"
+                switch -Regex (($choice ?? "").Trim().ToLowerInvariant()) {
+                    "^a$" { return "aborted" }
+                    "^s$" { return "skipped" }
+                    "^l$" {
+                        Write-Info "Launching 'gh auth login'..."
+                        gh auth login
+                        continue cloneLoop
+                    }
+                    "^m$" {
+                        Write-Host ""
+                        Write-Color "    Clone it yourself using:" "Yellow"
+                        Write-Color "      git clone $cloneUrl <path>" "Cyan"
+                        Write-Host ""
+                        $manualPath = Read-Host "    Enter the path where you cloned it [$TargetPath]"
+                        if (-not $manualPath) { $manualPath = $TargetPath }
+                        $manualPath = $manualPath -replace "^~", $env:USERPROFILE
+                        $manualPath = [System.IO.Path]::GetFullPath($manualPath)
+                        if (Test-Path (Join-Path $manualPath ".git")) {
+                            Write-Success "$DisplayName — found at $manualPath"
+                            # Update TargetPath for caller if different
+                            if ($manualPath -ne $TargetPath) {
+                                Set-Variable -Name TargetPath -Value $manualPath -Scope 1 -ErrorAction SilentlyContinue
+                            }
+                            return "cloned"
+                        } else {
+                            Write-Err "No git repo found at $manualPath"
+                            continue cloneLoop
+                        }
+                    }
+                    default { continue cloneLoop }
+                }
+            }
+
+            # Non-interactive: just fail
             Write-Host ""
             Write-Err "Failed to clone $DisplayName"
             Write-Color "    You can manually clone:" "Yellow"
-            Write-Color "      git clone $RepoUrl $TargetPath" "Cyan"
+            Write-Color "      git clone $cloneUrl $TargetPath" "Cyan"
             Write-Host ""
             return "clone-failed"
         }
-        return "cloned"
     }
 }
 
@@ -281,6 +562,47 @@ Write-Color "=================================" "Cyan"
 Write-Host ""
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Preflight: Git authentication
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Step "Preflight: Git authentication"
+
+# Check for GitHub CLI
+if (Get-Command gh -ErrorAction SilentlyContinue) {
+    $script:ghAvailable = $true
+    $ghStatus = gh auth status 2>&1 | Out-String
+    $accounts = [regex]::Matches($ghStatus, "Logged in to github\.com account (\S+)")
+    if ($accounts.Count -gt 0) {
+        $accountNames = ($accounts | ForEach-Object { $_.Groups[1].Value }) -join ", "
+        Write-Success "GitHub CLI — logged in ($accountNames)"
+        if ($accounts.Count -gt 1) {
+            $activeMatch = [regex]::Match($ghStatus, "account (\S+) \(keyring\)\s*\n\s*- Active account: true")
+            if ($activeMatch.Success) {
+                Write-Info "Active account: $($activeMatch.Groups[1].Value)"
+            }
+        }
+    } else {
+        Write-Warn "GitHub CLI found but not authenticated — run: gh auth login"
+    }
+} else {
+    Write-Warn "GitHub CLI (gh) not installed — credential prompts may appear"
+    Write-Info "Install: https://cli.github.com"
+}
+
+# Check SSH connectivity to github.com
+$sshResult = ssh -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com 2>&1 | Out-String
+if ($sshResult -match "Hi .+!") {
+    $script:sshAvailable = $true
+    $script:preferSsh = $true
+    $sshUser = [regex]::Match($sshResult, "Hi (\S+)!").Groups[1].Value
+    Write-Success "SSH to github.com — OK (as $sshUser, will prefer SSH URLs)"
+} else {
+    Write-Info "SSH to github.com not available — using HTTPS"
+    if (-not $script:ghAvailable) {
+        Write-Warn "No SSH and no gh CLI — git may prompt for credentials"
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 1: Backup ~/.copilot/
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Step "Step 1: Backup existing ~/.copilot/"
@@ -294,8 +616,8 @@ if (Test-Path $copilotHome) {
     $configFiles = @("config.json", "copilot-instructions.md", "lsp-config.json", "mcp-config.json")
     foreach ($f in $configFiles) {
         $src = Join-Path $copilotHome $f
-        if (Test-Path $src) {
-            Copy-Item $src (Join-Path $backupDir $f) -Force
+        if (Test-Path $src -ErrorAction SilentlyContinue) {
+            Copy-Item $src (Join-Path $backupDir $f) -Force -ErrorAction SilentlyContinue
         }
     }
 
@@ -491,9 +813,10 @@ $localSkills = Get-SkillFolders -BasePath $repoSkillsDir
 if ($localSkills.Count -eq 0) {
     Write-Info "No local skills found in $repoSkillsDir"
 } else {
+    Write-Info "Local: $($localSkills.Count) skills found in $repoSkillsDir"
     foreach ($skill in $localSkills) {
         $linkPath = Join-Path $copilotSkillsHome $skill.Name
-        $result = Create-DirJunction -LinkPath $linkPath -TargetPath $skill.Path -DisplayName $skill.Name -AskBeforeReplace
+        $result = Create-DirJunction -LinkPath $linkPath -TargetPath $skill.Path -DisplayName $skill.Name -AskBeforeReplace:(-not $NonInteractive)
 
         switch ($result) {
             "created" {
@@ -531,17 +854,60 @@ foreach ($skill in $localSkills) {
     )
 }
 
+# Load or create .external-paths.json (machine-local, gitignored)
+$externalPathsFile = Join-Path $repoRoot ".external-paths.json"
+if (Test-Path $externalPathsFile) {
+    $externalPaths = Get-Content $externalPathsFile -Raw | ConvertFrom-Json
+} else {
+    $externalPaths = [PSCustomObject]@{}
+}
+
+$abortRemainingExternal = $false
 foreach ($repo in $externalRepos) {
-    # Use LocalPath if specified, otherwise clone into external/
-    if ($repo.LocalPath -and $repo.LocalPath -ne "") {
-        $clonePath = $repo.LocalPath
-    } else {
-        $clonePath = Join-Path $externalDir $repo.CloneDir
+    $resolvedPath = $null
+
+    # 1. Check stored path from .external-paths.json (subsequent runs)
+    $storedPath = $externalPaths.PSObject.Properties[$repo.Name]
+    if ($storedPath -and (Test-Path $storedPath.Value)) {
+        $resolvedPath = $storedPath.Value
+        Write-Info "$($repo.DisplayName) — using stored path: $resolvedPath"
     }
-    $skillsPath = Join-Path $clonePath $repo.SkillsSubdir
 
-    $cloneResult = Clone-Or-Pull-Repo -RepoUrl $repo.Repo -TargetPath $clonePath -DisplayName $repo.DisplayName
+    if (-not $resolvedPath) {
+        # Auto-detect: check external/<CloneDir>
+        $detectedPath = $null
+        $extPath = Join-Path $externalDir $repo.CloneDir
+        if (Test-Path $extPath) {
+            $detectedPath = [System.IO.Path]::GetFullPath($extPath)
+        }
 
+        # 2. Interactive: prompt user for parent directory (append CloneDir)
+        if (-not $NonInteractive) {
+            $parentSuggestion = if ($detectedPath) { Split-Path $detectedPath -Parent } else { $externalDir }
+            $userDir = Read-Host "    Clone directory for $($repo.DisplayName) [$parentSuggestion]"
+            if ($userDir) {
+                $userDir = $userDir -replace "^~", $env:USERPROFILE
+                $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $userDir $repo.CloneDir))
+            } else {
+                $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $parentSuggestion $repo.CloneDir))
+            }
+        }
+        # 3. Non-interactive: use detected path or fall back to external/<CloneDir>
+        else {
+            if ($detectedPath) {
+                $resolvedPath = $detectedPath
+                Write-Info "$($repo.DisplayName) — auto-detected at $resolvedPath"
+            } else {
+                $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $externalDir $repo.CloneDir))
+            }
+        }
+    }
+
+    $skillsPath = Join-Path $resolvedPath $repo.SkillsSubdir
+
+    $cloneResult = Clone-Or-Pull-Repo -RepoUrl $repo.Repo -TargetPath $resolvedPath -DisplayName $repo.DisplayName -Category ($repo.Category ?? "base")
+
+    $skipRepo = $false
     switch ($cloneResult) {
         "cloned" {
             Write-Success "$($repo.DisplayName) — cloned"
@@ -551,17 +917,42 @@ foreach ($repo in $externalRepos) {
             Write-Success "$($repo.DisplayName) — updated"
             $script:summary.ExternalPulled += $repo.DisplayName
         }
+        "skipped" {
+            Write-Warn "$($repo.DisplayName) — skipped by user"
+            $skipRepo = $true
+        }
+        "aborted" {
+            Write-Warn "$($repo.DisplayName) — aborting remaining external repo clones by user choice"
+            $abortRemainingExternal = $true
+        }
         { $_ -match "failed" } {
             Write-Err "$($repo.DisplayName) — $cloneResult"
             $script:summary.ExternalFailed += $repo.DisplayName
-            continue
+            $skipRepo = $true
         }
+    }
+    if ($abortRemainingExternal) { break }
+    if ($skipRepo) { continue }
+
+    # Store resolved path for subsequent runs
+    if ($externalPaths.PSObject.Properties[$repo.Name]) {
+        $externalPaths.PSObject.Properties[$repo.Name].Value = $resolvedPath
+    } else {
+        $externalPaths | Add-Member -NotePropertyName $repo.Name -NotePropertyValue $resolvedPath
     }
 
     $extSkills = Get-SkillFolders -BasePath $skillsPath
-    Write-Info "$($repo.DisplayName): $($extSkills.Count) skills found"
+    $excludeList = @($repo.Exclude)
+    $excludedCount = 0
+    Write-Info "$($repo.DisplayName): $($extSkills.Count) skills found in $skillsPath"
 
     foreach ($skill in $extSkills) {
+        # Skip excluded skills
+        if ($excludeList -contains $skill.Name) {
+            $excludedCount++
+            continue
+        }
+
         if (-not $allSkills.ContainsKey($skill.Name)) {
             $allSkills[$skill.Name] = @()
         }
@@ -571,7 +962,13 @@ foreach ($repo in $externalRepos) {
             Path        = $skill.Path
         }
     }
+    if ($excludedCount -gt 0) {
+        Write-Info "$($repo.DisplayName): $excludedCount skill(s) excluded"
+    }
 }
+
+# Save .external-paths.json
+$externalPaths | ConvertTo-Json -Depth 5 | Set-Content $externalPathsFile -Encoding UTF8
 
 # Detect conflicts and resolve — local wins by default
 Write-Host ""
@@ -611,7 +1008,7 @@ foreach ($skillName in ($externalToLink.Keys | Sort-Object)) {
     $skillInfo = $externalToLink[$skillName]
     $linkPath = Join-Path $copilotSkillsHome $skillName
 
-    $result = Create-DirJunction -LinkPath $linkPath -TargetPath $skillInfo.Path -DisplayName "$skillName ($($skillInfo.DisplayName))" -AskBeforeReplace
+    $result = Create-DirJunction -LinkPath $linkPath -TargetPath $skillInfo.Path -DisplayName "$skillName ($($skillInfo.DisplayName))" -AskBeforeReplace:(-not $NonInteractive)
 
     switch ($result) {
         "created" {
@@ -634,22 +1031,300 @@ foreach ($skillName in ($externalToLink.Keys | Sort-Object)) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 9: Clean up stale skill junctions
+# Step 9: Resolve & build local MCP servers
 # ─────────────────────────────────────────────────────────────────────────────
-Write-Step "Step 9: Clean up stale skill junctions"
+Write-Step "Step 9: Resolve & build local MCP servers"
 
-$staleCount = 0
-# Stale cleanup disabled — no allowlist filtering
-Write-Info "Stale junction cleanup skipped (no allowlist)"
+$mcpServers = (Get-Content $mcpServersJsonPath -Raw | ConvertFrom-Json).servers
 
-if ($staleCount -eq 0) {
-    Write-Info "No stale junctions to clean up"
+# Determine enabled categories
+$enabledCategories = @("base")
+if ($includeWorkSkills) { $enabledCategories += "work" }
+if ($includePowerBI)    { $enabledCategories += "powerbi" }
+
+$enabledServers = $mcpServers | Where-Object { $enabledCategories -contains $_.category }
+
+# Load or create .mcp-paths.json (machine-local, gitignored)
+$mcpPathsFile = Join-Path $repoRoot ".mcp-paths.json"
+if (Test-Path $mcpPathsFile) {
+    $mcpPaths = Get-Content $mcpPathsFile -Raw | ConvertFrom-Json
 } else {
-    Write-Success "Cleaned up $staleCount stale junction(s)"
+    $mcpPaths = [PSCustomObject]@{}
+}
+
+$abortRemainingMcpClones = $false
+foreach ($server in $enabledServers) {
+    if ($server.type -ne "local") { continue }
+
+    $resolvedPath = $null
+
+    # 1. Check stored path from .mcp-paths.json (subsequent runs)
+    $storedPath = $mcpPaths.PSObject.Properties[$server.name]
+    if ($storedPath -and (Test-Path $storedPath.Value)) {
+        $resolvedPath = $storedPath.Value
+        Write-Info "$($server.name) — using stored path: $resolvedPath"
+    }
+
+    if (-not $resolvedPath) {
+        # Auto-detect from defaultPaths and external/ for use as suggestion
+        $detectedPath = $null
+        if ($server.defaultPaths) {
+            foreach ($dp in $server.defaultPaths) {
+                $expanded = $dp -replace "^~", $env:USERPROFILE
+                if (Test-Path $expanded) {
+                    $detectedPath = [System.IO.Path]::GetFullPath($expanded)
+                    break
+                }
+            }
+        }
+        if (-not $detectedPath) {
+            $extPath = Join-Path $externalDir $server.cloneDir
+            if (Test-Path $extPath) {
+                $detectedPath = [System.IO.Path]::GetFullPath($extPath)
+            }
+        }
+
+        # 2. First run, interactive: always prompt (use detected path as default)
+        if (-not $NonInteractive) {
+            $suggestion = if ($detectedPath) { $detectedPath } else { Join-Path $externalDir $server.cloneDir }
+            $userPath = Read-Host "    Path to $($server.name) repo [$suggestion]"
+            if ($userPath) {
+                $userPath = $userPath -replace "^~", $env:USERPROFILE
+                $resolvedPath = [System.IO.Path]::GetFullPath($userPath)
+            } else {
+                $resolvedPath = [System.IO.Path]::GetFullPath($suggestion)
+            }
+        }
+        # 3. Non-interactive: use detected path or fall back to external/
+        else {
+            if ($detectedPath) {
+                $resolvedPath = $detectedPath
+                Write-Info "$($server.name) — auto-detected at $resolvedPath"
+            } else {
+                $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $externalDir $server.cloneDir))
+            }
+        }
+    }
+
+    # Clone if needed
+    if (-not (Test-Path $resolvedPath)) {
+        Write-Info "$($server.name) — cloning to $resolvedPath..."
+        $cloneResult = Clone-Or-Pull-Repo -RepoUrl $server.repo -TargetPath $resolvedPath -DisplayName $server.name -Category $server.category
+        if ($cloneResult -eq "aborted") {
+            Write-Warn "$($server.name) — aborting remaining MCP clones by user choice"
+            $abortRemainingMcpClones = $true
+            break
+        }
+        if ($cloneResult -eq "skipped") {
+            Write-Warn "$($server.name) — skipped by user"
+            $script:summary.McpServersFailed += $server.name
+            continue
+        }
+        if ($cloneResult -match "failed") {
+            Write-Err "$($server.name) — clone failed: $cloneResult"
+            $script:summary.McpServersFailed += $server.name
+            continue
+        }
+    }
+
+    # Store resolved path
+    if ($mcpPaths.PSObject.Properties[$server.name]) {
+        $mcpPaths.PSObject.Properties[$server.name].Value = $resolvedPath
+    } else {
+        $mcpPaths | Add-Member -NotePropertyName $server.name -NotePropertyValue $resolvedPath
+    }
+
+    # Build
+    if ($server.build) {
+        Write-Info "$($server.name) — building..."
+        $buildFailed = $false
+        foreach ($cmd in $server.build) {
+            try {
+                Push-Location $resolvedPath
+                $output = Invoke-Expression $cmd 2>&1
+                if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                    Write-Err "$($server.name) — '$cmd' failed (exit code $LASTEXITCODE)"
+                    $buildFailed = $true
+                    break
+                }
+            } catch {
+                Write-Err "$($server.name) — '$cmd' threw: $_"
+                $buildFailed = $true
+                break
+            } finally {
+                Pop-Location
+            }
+        }
+
+        if ($buildFailed) {
+            $script:summary.McpServersFailed += $server.name
+        } else {
+            Write-Success "$($server.name) — built successfully"
+            $script:summary.McpServersBuilt += $server.name
+        }
+    }
+}
+
+# Save .mcp-paths.json
+$mcpPaths | ConvertTo-Json -Depth 5 | Set-Content $mcpPathsFile -Encoding UTF8
+
+if ($script:summary.McpServersBuilt.Count -eq 0 -and $script:summary.McpServersFailed.Count -eq 0) {
+    $localCount = @($enabledServers | Where-Object { $_.type -eq "local" }).Count
+    if ($localCount -eq 0) {
+        Write-Info "No local MCP servers to build"
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 10: Summary
+# Step 10: Validate MCP server environment variables
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Step "Step 10: Validate MCP environment variables"
+
+foreach ($server in $enabledServers) {
+    if (-not $server.envVars) { continue }
+
+    foreach ($varName in $server.envVars) {
+        $val = [System.Environment]::GetEnvironmentVariable($varName)
+        if ($val) {
+            Write-Info "$varName — set ✓"
+        } elseif (-not $NonInteractive) {
+            Write-Warn "$varName (required by $($server.name)) is not set"
+            $input = Read-Host "    Enter value for $varName (or press Enter to skip)"
+            if ($input) {
+                [System.Environment]::SetEnvironmentVariable($varName, $input, "Process")
+                Write-Success "$varName — set for this session"
+                Write-Warn "  To persist, add to your shell profile: `$env:$varName = `"$input`""
+            } else {
+                Write-Warn "$varName — skipped (MCP server $($server.name) may not work)"
+                $script:summary.McpEnvMissing += "$varName ($($server.name))"
+            }
+        } else {
+            Write-Warn "$varName (required by $($server.name)) is not set — server may not work at runtime"
+            $script:summary.McpEnvMissing += "$varName ($($server.name))"
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 11: Generate ~/.copilot/mcp-config.json
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Step "Step 11: Generate mcp-config.json"
+
+$mcpConfig = [ordered]@{ mcpServers = [ordered]@{} }
+
+foreach ($server in $enabledServers) {
+    $entry = [ordered]@{}
+
+    switch ($server.type) {
+        "npx" {
+            $entry["type"] = "local"
+            $entry["command"] = "npx"
+            $entry["tools"] = @($server.tools)
+            $npxArgs = @("-y", $server.package)
+            if ($server.args) { $npxArgs += @($server.args) }
+            $entry["args"] = $npxArgs
+        }
+        "http" {
+            $entry["type"] = "http"
+            $entry["url"] = $server.url
+            $entry["tools"] = @($server.tools)
+            if ($server.headers) {
+                $headers = [ordered]@{}
+                $server.headers.PSObject.Properties | ForEach-Object { $headers[$_.Name] = $_.Value }
+                $entry["headers"] = $headers
+            }
+        }
+        "local" {
+            $serverPath = $mcpPaths.PSObject.Properties[$server.name]
+            if ($serverPath) {
+                $entryPointPath = Join-Path $serverPath.Value $server.entryPoint
+            } else {
+                $entryPointPath = Join-Path (Join-Path $externalDir $server.cloneDir) $server.entryPoint
+            }
+            $entry["type"] = "local"
+            $entry["command"] = $server.command
+            $entry["tools"] = @($server.tools)
+            $entry["args"] = @([System.IO.Path]::GetFullPath($entryPointPath))
+        }
+    }
+
+    $mcpConfig.mcpServers[$server.name] = $entry
+}
+
+$mcpConfigPath = Join-Path $copilotHome "mcp-config.json"
+$mcpConfig | ConvertTo-Json -Depth 10 | Set-Content $mcpConfigPath -Encoding UTF8
+Write-Success "Generated $mcpConfigPath ($($enabledServers.Count) servers)"
+$script:summary.McpConfigGenerated = $true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 12: Clean up stale skill junctions
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Step "Step 12: Clean up stale skill junctions"
+
+# Build set of all skill names we intentionally linked (local + external)
+$linkedSkillNames = @{}
+foreach ($skill in $localSkills) { $linkedSkillNames[$skill.Name] = $true }
+foreach ($skillName in $externalToLink.Keys) { $linkedSkillNames[$skillName] = $true }
+
+$staleCount = 0
+$orphanCount = 0
+
+if ($includeCleanOrphans) {
+    # Remove ALL items in skills dir that aren't in the linked set
+    Get-ChildItem -Path $copilotSkillsHome -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        if (-not $linkedSkillNames.ContainsKey($_.Name)) {
+            if ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+                Write-Warn "Removing orphan junction: $($_.Name)"
+                cmd /c rmdir "$($_.FullName)" 2>&1 | Out-Null
+            } else {
+                Write-Warn "Removing orphan skill: $($_.Name)"
+                Remove-Item -Path $_.FullName -Recurse -Force
+            }
+            $orphanCount++
+        }
+    }
+} else {
+    # Default: only remove stale junctions pointing into managed directories
+    $managedRoots = @(
+        [System.IO.Path]::GetFullPath($repoRoot),
+        [System.IO.Path]::GetFullPath($externalDir)
+    )
+
+    Get-ChildItem -Path $copilotSkillsHome -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            $target = (Get-Item $_.FullName -Force).Target
+            if ($target -is [System.Collections.IEnumerable] -and $target -isnot [string]) { $target = $target[0] }
+            if ($target) {
+                $resolved = [System.IO.Path]::GetFullPath($target)
+                $isManagedTarget = $false
+                foreach ($root in $managedRoots) {
+                    if ($resolved.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        $isManagedTarget = $true
+                        break
+                    }
+                }
+                if ($isManagedTarget -and -not $linkedSkillNames.ContainsKey($_.Name)) {
+                    Write-Warn "Removing stale junction: $($_.Name) → $target"
+                    cmd /c rmdir "$($_.FullName)" 2>&1 | Out-Null
+                    $staleCount++
+                }
+            }
+        }
+    }
+}
+
+$totalCleaned = $staleCount + $orphanCount
+if ($totalCleaned -eq 0) {
+    Write-Info "No stale junctions to clean up"
+} else {
+    $parts = @()
+    if ($staleCount -gt 0) { $parts += "$staleCount stale" }
+    if ($orphanCount -gt 0) { $parts += "$orphanCount orphan" }
+    Write-Success "Cleaned up $($parts -join ', ') skill(s)"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 13: Summary
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Color "═══════════════════════════════════" "Cyan"
@@ -710,6 +1385,21 @@ if ($script:summary.ConflictsResolved.Count -gt 0) {
     Write-Color "  Conflicts resolved:" "Yellow"
     foreach ($c in $script:summary.ConflictsResolved) {
         Write-Color "    • $c" "Yellow"
+    }
+}
+
+if ($script:summary.McpConfigGenerated) {
+    Write-Host ""
+    Write-Color "  MCP servers:" "Cyan"
+    Write-Color "    Configured:     $($enabledServers.Count)" "Green"
+    if ($script:summary.McpServersBuilt.Count -gt 0) {
+        Write-Color "    Built:          $($script:summary.McpServersBuilt -join ', ')" "Green"
+    }
+    if ($script:summary.McpServersFailed.Count -gt 0) {
+        Write-Color "    Build failed:   $($script:summary.McpServersFailed -join ', ')" "Red"
+    }
+    if ($script:summary.McpEnvMissing.Count -gt 0) {
+        Write-Color "    Env missing:    $($script:summary.McpEnvMissing -join ', ')" "Yellow"
     }
 }
 
