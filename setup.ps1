@@ -353,29 +353,45 @@ function Clone-Or-Pull-Repo {
                 Write-Info "$DisplayName — remote updated to $authMethod"
             }
 
-            # Ensure we're on the default branch before pulling
+            # Pull the current branch (don't force checkout — respect user's branch choice)
             $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
-            $defaultBranch = $null
-            # Try symbolic-ref first (authoritative remote default)
-            $symRef = git symbolic-ref refs/remotes/origin/HEAD 2>$null
-            if ($symRef -match "refs/remotes/origin/(.+)$") {
-                $defaultBranch = $Matches[1]
-            }
-            # Fall back: check which of main/master exists locally
-            if (-not $defaultBranch) {
-                if (git rev-parse --verify main 2>$null) { $defaultBranch = "main" }
-                elseif (git rev-parse --verify master 2>$null) { $defaultBranch = "master" }
-            }
-            if ($defaultBranch -and $currentBranch -ne $defaultBranch) {
-                git checkout $defaultBranch --quiet 2>&1 | Out-Null
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Warn "$DisplayName — failed to checkout $defaultBranch, pulling current branch"
-                }
+            if ($currentBranch) {
+                Write-Info "$DisplayName — on branch $currentBranch"
             }
 
             git pull --quiet 2>&1 | Out-Null
             if ($LASTEXITCODE -ne 0) {
                 Write-Warn "$DisplayName — failed to pull (may be offline)"
+
+                # Interactive recovery for pull failures
+                if (-not $NonInteractive) {
+                    Write-Host ""
+                    Write-Color "    [C] Continue       — use existing local copy (default)" "White"
+                    Write-Color "    [R] Retry          — try pulling again" "White"
+                    Write-Color "    [S] Skip           — skip this repo entirely" "White"
+                    Write-Color "    [A] Abort          — stop processing remaining repos" "White"
+                    Write-Host ""
+                    :pullRecovery while ($true) {
+                        $choice = Read-Host "    Choice [C/r/s/a]"
+                        switch -Regex (($choice ?? "").Trim().ToLowerInvariant()) {
+                            "^a$" { return "aborted" }
+                            "^s$" { return "skipped" }
+                            "^r$" {
+                                git pull --quiet 2>&1 | Out-Null
+                                if ($LASTEXITCODE -eq 0) {
+                                    return "pulled"
+                                }
+                                Write-Warn "$DisplayName — pull failed again"
+                                continue pullRecovery
+                            }
+                            default {
+                                # Enter or 'c' — continue with existing local copy
+                                return "pull-failed"
+                            }
+                        }
+                    }
+                }
+
                 return "pull-failed"
             }
             return "pulled"
@@ -912,18 +928,27 @@ foreach ($repo in $externalRepos) {
         "cloned" {
             Write-Success "$($repo.DisplayName) — cloned"
             $script:summary.ExternalCloned += $repo.DisplayName
+            break
         }
         "pulled" {
             Write-Success "$($repo.DisplayName) — updated"
             $script:summary.ExternalPulled += $repo.DisplayName
+            break
         }
         "skipped" {
             Write-Warn "$($repo.DisplayName) — skipped by user"
             $skipRepo = $true
+            break
         }
         "aborted" {
             Write-Warn "$($repo.DisplayName) — aborting remaining external repo clones by user choice"
             $abortRemainingExternal = $true
+            break
+        }
+        "pull-failed" {
+            Write-Warn "$($repo.DisplayName) — using existing local copy (pull failed)"
+            $script:summary.ExternalFailed += $repo.DisplayName
+            break
         }
         { $_ -match "failed" } {
             Write-Err "$($repo.DisplayName) — $cloneResult"
