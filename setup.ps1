@@ -101,8 +101,8 @@ $externalRepos = @(
 $optionalRepos = @(
     @{
         Name        = "msx-mcp"
-        DisplayName = "ericchansen/msx-mcp"
-        Repo        = "https://github.com/ericchansen/msx-mcp.git"
+        DisplayName = "mcaps-microsoft/MSX-MCP"
+        Repo        = "https://github.com/mcaps-microsoft/MSX-MCP.git"
         CloneDir    = "msx-mcp"
         SkillsSubdir = "skills"
         Category    = "work"
@@ -110,8 +110,8 @@ $optionalRepos = @(
     }
     @{
         Name        = "spt-iq"
-        DisplayName = "ericchansen/SPT-IQ"
-        Repo        = "https://github.com/ericchansen/SPT-IQ.git"
+        DisplayName = "mcaps-microsoft/SPT-IQ"
+        Repo        = "https://github.com/mcaps-microsoft/SPT-IQ.git"
         CloneDir    = "SPT-IQ"
         SkillsSubdir = "skills"
         Category    = "work"

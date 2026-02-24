@@ -22,13 +22,13 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 | `.copilot/config.portable.json` | Portable settings (model, theme, etc.) | **No** — patched into `config.json` |
 | `.copilot/skills/` | Custom skills | Directory junctions |
 | `external/` | Cloned external skill repos (default location) | — |
-| `setup.ps1` | Install: symlink configs, patch settings, clone externals, link skills | — |
-| `restore.ps1` | Uninstall: remove symlinks, optionally restore backups | — |
-| `sync-skills.ps1` | Adopt untracked skills from `~/.copilot/skills/` | — |
+| `setup.ps1` / `setup.sh` | Install: symlink configs, patch settings, clone externals, link skills | — |
+| `restore.ps1` / `restore.sh` | Uninstall: remove symlinks, optionally restore backups | — |
+| `sync-skills.ps1` / `sync-skills.sh` | Adopt untracked skills from `~/.copilot/skills/` | — |
 
 ## Adding a New Tracked Config File
 
-Update **2 places** in `setup.ps1`:
+Update **2 places** in `setup.ps1` (or `setup.sh` for the Bash version):
 
 1. `$configFileLinks` array
 2. Backup file list (`$configFiles`)

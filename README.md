@@ -22,12 +22,23 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
 
 2. **Run the setup script:**
 
+   **PowerShell (Windows):**
    ```powershell
    ./setup.ps1                                           # Interactive — prompts for options
    ./setup.ps1 -WorkSkills -PowerBI                      # Include work skills + Power BI
    ./setup.ps1 -NonInteractive                           # No prompts, base only (safe for cron)
    ./setup.ps1 -NonInteractive -WorkSkills -PowerBI      # No prompts, everything enabled
    ```
+
+   **Bash (macOS/Linux):**
+   ```bash
+   ./setup.sh                                            # Interactive — prompts for options
+   ./setup.sh --work-skills --power-bi                   # Include work skills + Power BI
+   ./setup.sh --non-interactive                          # No prompts, base only (safe for cron)
+   ./setup.sh --non-interactive --work-skills --power-bi # No prompts, everything enabled
+   ```
+
+   > **Note:** The Bash scripts require `jq` for JSON processing and Bash 4+. On macOS, install both with `brew install bash jq`.
 
 The setup script will:
 - **Check git authentication** — detects SSH keys and GitHub CLI accounts, uses `gh auth token` for clone fallbacks (no browser popups)
@@ -135,7 +146,8 @@ MCP server configuration is defined in `mcp-servers.json` and generated into `~/
 ```bash
 cd ~/repos/copilot-config
 git pull
-./setup.ps1   # or ./setup.sh
+./setup.ps1   # Windows (PowerShell)
+./setup.sh    # macOS/Linux (Bash)
 ```
 
 ## Restoring
@@ -143,7 +155,8 @@ git pull
 If something breaks, use the restore script to remove all symlinks and optionally restore from backup:
 
 ```powershell
-./restore.ps1
+./restore.ps1   # Windows (PowerShell)
+./restore.sh    # macOS/Linux (Bash)
 ```
 
 ## Custom Skills
@@ -170,19 +183,8 @@ Setup links curated skills from:
 - **[github/awesome-copilot](https://github.com/github/awesome-copilot)** — 27 skills covering Azure, GitHub CLI, Chrome DevTools, web forms, diagrams, and more
 
 ### Optional Work Skills (`-WorkSkills`)
-- **[ericchansen/msx-mcp](https://github.com/ericchansen/msx-mcp)** — account-explorer, monthly-opportunity-report, msx-acr-reconciler, territory-scanner, weekly-impact-report
-- **[ericchansen/SPT-IQ](https://github.com/ericchansen/SPT-IQ)** — spt-iq-consumption, spt-iq-preflight
-
-## Migrating from `ericchansen/skills`
-
-If you previously cloned this repo as `skills`, update your remote:
-
-```bash
-cd ~/repos/skills
-git remote set-url origin git@github.com:ericchansen/copilot-config.git
-# Optionally rename the local directory
-cd .. && mv skills copilot-config
-```
+- **[mcaps-microsoft/MSX-MCP](https://github.com/mcaps-microsoft/MSX-MCP)**
+- **[mcaps-microsoft/SPT-IQ](https://github.com/mcaps-microsoft/SPT-IQ)**
 
 ## About Agent Skills
 
