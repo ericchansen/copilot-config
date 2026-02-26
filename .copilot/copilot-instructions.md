@@ -76,6 +76,30 @@ git commit -m "<type>: <description>"  # Use git-commit skill
 - **Always offer to create a PR** after pushing a branch — submit work via PRs, not direct pushes
 - If the upstream repo is not owned by the user (e.g., a Microsoft org repo), fork first, then open a PR from the fork
 
+### Multi-Account Git Authentication
+
+This machine has **two GitHub accounts** configured via `gh auth`:
+
+| Account | Type | SSH Host | Use For |
+|---------|------|----------|---------|
+| `ericchansen` | Personal | `github.com` (default) | Personal repos, open-source |
+| `erichansen_microsoft` | Work (Microsoft) | `github.com-work` | Microsoft org repos (`mcaps-microsoft/*`, etc.) |
+
+**How it works:**
+- **SSH**: Default `git@github.com` authenticates as `ericchansen`. For work repos, use `git@github.com-work:org/repo.git` (configured in `~/.ssh/config`).
+- **HTTPS + SAML**: Microsoft org repos (e.g., `mcaps-microsoft`) require SAML SSO. SSH keys must be SAML-authorized, or use HTTPS with `gh auth` tokens. To pull/push SAML-protected repos:
+  ```bash
+  gh auth switch --user erichansen_microsoft
+  git -c credential.helper="!gh auth git-credential" pull
+  ```
+- **Switching accounts**: `gh auth switch --user <account>` changes the active `gh` account. Always switch back when done.
+
+**When pulls fail with "Repository not found" or SAML errors:**
+1. Check which account owns/has access: `gh auth status`
+2. Switch to the correct account: `gh auth switch --user <account>`
+3. For SSH SAML issues, fall back to HTTPS: `git -c credential.helper="!gh auth git-credential" pull`
+4. If a repo remote uses the wrong SSH host, fix it: `git remote set-url origin git@github.com-work:org/repo.git`
+
 ### Clean Commit History (No Merge Commits)
 - **Prefer linear history** — avoid merge commits when possible
 - Use `git rebase` before merging or pushing
