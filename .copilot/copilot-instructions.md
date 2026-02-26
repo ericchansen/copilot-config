@@ -44,11 +44,14 @@
    - Do NOT skip this step. Do NOT push without running E2E first.
    - E2E tests catch integration bugs that unit tests miss.
    - If E2E tests fail locally, they WILL fail in CI. Fix them first.
-5. **🔑 Scan staged diff for secrets — MANDATORY**
+5. **🔑 Scan staged diff for secrets AND PII — MANDATORY**
    - Check `git diff --staged` for: API keys, tokens, passwords, connection strings, private keys, `.pem`/`.pfx` files
+   - **Also scan for PII**: real usernames, GitHub account names, email addresses, SSH host aliases, org names, colleague names
    - Common patterns: `sk-`, `ctx7sk-`, `ghp_`, `Bearer `, `password=`, `connectionString`, `-----BEGIN`
-   - If ANY secrets are found: **STOP — do not commit**
+   - **Always check `~/.copilot/sensitive-terms.txt`** — contains user-specific blocklist terms
+   - If ANY secrets or PII are found: **STOP — do not commit**
    - Alert the user with the exact file and line
+   - Use generic placeholders (`<account>`, `<org>`, `<host>`) instead of real identifiers
    - Move secrets to environment variables or `.env` files (must be in `.gitignore`)
 6. UI apps: validate with Playwright MCP browser tools (uses **Edge**, not Chrome)
 7. Azure apps: deploy and validate with Playwright MCP browser tools
@@ -75,6 +78,25 @@ git commit -m "<type>: <description>"  # Use git-commit skill
   ```
 - **Always offer to create a PR** after pushing a branch — submit work via PRs, not direct pushes
 - If the upstream repo is not owned by the user (e.g., a Microsoft org repo), fork first, then open a PR from the fork
+
+### Multi-Account Git Authentication
+
+This machine has **two GitHub accounts** configured via `gh auth` — one personal, one work (Microsoft EMU). Check `gh auth status` to see both.
+
+- **SSH host aliases**: `~/.ssh/config` maps different SSH hosts to different keys. The default `github.com` host uses the personal key; a `-work` alias uses the work key.
+- **SAML-protected orgs**: Microsoft org repos require SAML SSO. If SSH keys aren't SAML-authorized, fall back to HTTPS with `gh auth` tokens:
+  ```bash
+  gh auth switch --user <work-account>
+  git -c credential.helper="!gh auth git-credential" pull
+  ```
+- **Switching accounts**: `gh auth switch --user <account>` changes the active `gh` account. Always switch back when done.
+- **`gh` API calls (PRs, issues)**: Use the account that owns the repo. EMU accounts can't access personal repos and vice versa.
+
+**When pulls fail with "Repository not found" or SAML errors:**
+1. Check which account owns/has access: `gh auth status`
+2. Switch to the correct account: `gh auth switch --user <account>`
+3. For SSH SAML issues, fall back to HTTPS: `git -c credential.helper="!gh auth git-credential" pull`
+4. If a repo remote uses the wrong SSH host alias, fix it: `git remote set-url origin git@<correct-host>:org/repo.git`
 
 ### Clean Commit History (No Merge Commits)
 - **Prefer linear history** — avoid merge commits when possible
