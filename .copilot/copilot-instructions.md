@@ -79,6 +79,17 @@ git commit -m "<type>: <description>"  # Use git-commit skill
 - **Always offer to create a PR** after pushing a branch — submit work via PRs, not direct pushes
 - If the upstream repo is not owned by the user (e.g., a Microsoft org repo), fork first, then open a PR from the fork
 
+### Creating PRs
+- **⚠️ NEVER use inline `--body` with `gh pr create`** — backticks and special characters get mangled by PowerShell escaping. Always use `--body-file`:
+  1. Write the PR body to a temp file (e.g., `pr-body.md`)
+  2. Run `gh pr create --title "..." --body-file pr-body.md`
+  3. Delete the temp file after PR creation
+- **PR body format:** concise and scannable
+  - Short summary sentence (what and why)
+  - Grouped bullet list of changes (use `###` subsections if 3+ categories)
+  - Footer: testing status, breaking changes, or migration notes if applicable
+  - Use markdown formatting (backticks, bold, links) — the `--body-file` approach preserves it all
+
 ### Multi-Account Git Authentication
 
 This machine has **two GitHub accounts** configured via `gh auth` — one personal, one work (Microsoft EMU). Check `gh auth status` to see both.
