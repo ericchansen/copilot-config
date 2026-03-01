@@ -81,8 +81,8 @@ $externalRepos = @(
     }
     @{
         Name        = "github"
-        DisplayName = "github/awesome-copilot"
-        Repo        = "https://github.com/github/awesome-copilot.git"
+        DisplayName = "ericchansen/awesome-copilot"
+        Repo        = "https://github.com/ericchansen/awesome-copilot.git"
         CloneDir    = "awesome-copilot"
         SkillsSubdir = "skills"
         Category    = "base"

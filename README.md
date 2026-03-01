@@ -45,7 +45,7 @@ The setup script will:
 - Back up your existing `~/.copilot/` config
 - Symlink instructions and skills into `~/.copilot/`
 - Patch your `config.json` with portable settings (without touching auth)
-- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/github/awesome-copilot)) and link curated skills
+- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/ericchansen/awesome-copilot)) and link curated skills
 - Optionally clone work-specific repos (msx-mcp, SPT-IQ) when requested
 - Build local MCP servers (clone, install deps, compile)
 - Validate required environment variables (prompt if missing)
@@ -180,7 +180,7 @@ Multi-model brainstorming using Claude Opus 4.6, GPT-5.3-Codex, and Gemini 3 Pro
 
 Setup links curated skills from:
 - **[anthropics/skills](https://github.com/anthropics/skills)** — docx, pdf, pptx, xlsx, frontend-design, web-artifacts-builder, webapp-testing, theme-factory
-- **[github/awesome-copilot](https://github.com/github/awesome-copilot)** — 27 skills covering Azure, GitHub CLI, Chrome DevTools, web forms, diagrams, and more
+- **[ericchansen/awesome-copilot](https://github.com/ericchansen/awesome-copilot)** — 27 skills covering Azure, GitHub CLI, Chrome DevTools, web forms, diagrams, and more
 
 ### Optional Work Skills (`-WorkSkills`)
 - **[mcaps-microsoft/MSX-MCP](https://github.com/mcaps-microsoft/MSX-MCP)**
