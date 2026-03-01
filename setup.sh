@@ -77,8 +77,8 @@ EXTERNAL_REPOS_JSON=$(cat <<'REPOS_EOF'
   },
   {
     "name": "github",
-    "displayName": "github/awesome-copilot",
-    "repo": "https://github.com/github/awesome-copilot.git",
+    "displayName": "ericchansen/awesome-copilot",
+    "repo": "https://github.com/ericchansen/awesome-copilot.git",
     "cloneDir": "awesome-copilot",
     "skillsSubdir": "skills",
     "category": "base",
