@@ -12,6 +12,7 @@
 | **Cite everything** | Every stat/claim needs a clickable URL |
 | **Challenge assumptions** | Question approaches, push back with evidence |
 | **Research first** | Use Context7 / Microsoft Learn MCP before implementing |
+| **🔐 Multiple GitHub accounts** | **`gh auth status` when git/gh ops fail** — wrong account is the most common cause |
 
 
 ## Git Workflow
@@ -19,6 +20,7 @@
 **Prefixes:** `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `perf`
 
 ### Branching
+- **🔐 When git/gh operations fail, check for multiple GitHub accounts** — run `gh auth status`. There may be multiple accounts configured (e.g., work EMU + personal). The wrong active account causes "Repository not found", 403s, SAML errors, and API failures that look like permission issues. If the active account doesn't match the repo, switch: `gh auth switch --user <account>`.
 - **🚫 NEVER push to `main` or `master` on ANY remote** — this is an absolute rule with ZERO exceptions
   - Not even for "small" changes, README updates, redirects, or deprecated repos
   - Not even if the user's request implies it — create a branch and PR instead
@@ -66,6 +68,7 @@ git commit -m "<type>: <description>"  # Use git-commit skill
 ### Push & PR
 - **Do NOT push or create PRs unless the user explicitly asks**
 - Default is local-only: commit, but don't push
+- **🔐 If push or PR creation fails, check `gh auth status`** — multiple accounts may be configured; wrong active account = "not found" or 403.
 - **🛑 NEVER push directly to `main` or `master` on ANY remote** — always push a feature branch and open a PR. This applies to ALL remotes (origin, upstream, forks, deprecated repos — no exceptions).
 - **🛑 BEFORE ANY PUSH — MANDATORY REVIEW:**
   1. **Invoke the `git-safety-scan` skill** — this scans for sensitive data
@@ -90,24 +93,40 @@ git commit -m "<type>: <description>"  # Use git-commit skill
   - Footer: testing status, breaking changes, or migration notes if applicable
   - Use markdown formatting (backticks, bold, links) — the `--body-file` approach preserves it all
 
-### Multi-Account Git Authentication
+### ⚠️ Multi-Account Git Authentication
 
-This machine has **two GitHub accounts** configured via `gh auth` — one personal, one work (Microsoft EMU). Check `gh auth status` to see both.
+> **Multiple GitHub accounts may be configured on this machine (e.g., enterprise EMU + personal). When any git/gh operation fails unexpectedly, the wrong active account is the most likely cause. CHECK FIRST.**
 
-- **SSH host aliases**: `~/.ssh/config` maps different SSH hosts to different keys. The default `github.com` host uses the personal key; a `-work` alias uses the work key.
-- **SAML-protected orgs**: Microsoft org repos require SAML SSO. If SSH keys aren't SAML-authorized, fall back to HTTPS with `gh auth` tokens:
-  ```bash
-  gh auth switch --user <work-account>
-  git -c credential.helper="!gh auth git-credential" pull
-  ```
-- **Switching accounts**: `gh auth switch --user <account>` changes the active `gh` account. Always switch back when done.
-- **`gh` API calls (PRs, issues)**: Use the account that owns the repo. EMU accounts can't access personal repos and vice versa.
+**Account types and their limitations:**
+- **Enterprise Managed User (EMU)** — for org repos. **CANNOT** create/access personal repos, transfer repos to itself, or interact with non-enterprise orgs.
+- **Personal** — for personal repos, OSS, forks. **CANNOT** access enterprise org repos or SAML-protected resources.
+- They are **not interchangeable** — using the wrong one silently fails.
 
-**When pulls fail with "Repository not found" or SAML errors:**
-1. Check which account owns/has access: `gh auth status`
-2. Switch to the correct account: `gh auth switch --user <account>`
-3. For SSH SAML issues, fall back to HTTPS: `git -c credential.helper="!gh auth git-credential" pull`
-4. If a repo remote uses the wrong SSH host alias, fix it: `git remote set-url origin git@<correct-host>:org/repo.git`
+**When something fails, check immediately:**
+```bash
+gh auth status  # Which account is active? Are there multiple?
+```
+If the active account doesn't match the repo you're working with → `gh auth switch --user <account>` and retry.
+
+**SSH host aliases**: `~/.ssh/config` maps different SSH hosts to different keys. The default `github.com` host uses the personal key; a `-work` alias uses the work key.
+
+**SAML-protected orgs**: Microsoft org repos require SAML SSO. If SSH keys aren't SAML-authorized, fall back to HTTPS:
+```bash
+gh auth switch --user <work-account>
+git -c credential.helper="!gh auth git-credential" pull
+```
+
+**Common failure patterns — ALL caused by wrong active account:**
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| "Repository not found" | Wrong account active | `gh auth switch --user <account>` |
+| 403 Forbidden | Wrong account for org | Switch to account with org access |
+| SAML SSO required | SSH key not SAML-authorized | Fall back to HTTPS (see above) |
+| `gh pr create` fails | EMU can't access personal repo (or vice versa) | Switch to the account that owns the repo |
+| `gh auth refresh` authenticates wrong account | Device flow defaults to browser's logged-in account | Open incognito, log into correct account first |
+| "Resource not accessible by integration" | API token from wrong account | `gh auth switch`, then retry |
+
+**After finishing work on a repo owned by one account, switch back if needed.** Don't leave the wrong account active — it will bite the next operation.
 
 ### Clean Commit History (No Merge Commits)
 - **Prefer linear history** — avoid merge commits when possible
