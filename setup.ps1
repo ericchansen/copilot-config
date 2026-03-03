@@ -337,13 +337,20 @@ function Clone-Or-Pull-Repo {
         Push-Location $TargetPath
         try {
             # Validate repo identity before touching anything
+            # Accept if origin OR upstream matches the expected repo (supports forks)
             $currentRemote = git remote get-url origin 2>$null
             if ($currentRemote) {
                 $expectedSlug = if ($RepoUrl -match "github\.com[:/](.+?)(?:\.git)?$") { $Matches[1] } else { $null }
                 $actualSlug   = if ($currentRemote -match "github\.com[:/](.+?)(?:\.git)?$") { $Matches[1] } else { $null }
                 if ($expectedSlug -and $actualSlug -and $expectedSlug -ne $actualSlug) {
-                    Write-Err "$DisplayName — path contains a different repo ($actualSlug, expected $expectedSlug)"
-                    return "identity-check-failed"
+                    # Origin doesn't match — check upstream (fork workflow)
+                    $upstreamRemote = git remote get-url upstream 2>$null
+                    $upstreamSlug = if ($upstreamRemote -and $upstreamRemote -match "github\.com[:/](.+?)(?:\.git)?$") { $Matches[1] } else { $null }
+                    if (-not $upstreamSlug -or $upstreamSlug -ne $expectedSlug) {
+                        Write-Err "$DisplayName — path contains a different repo ($actualSlug, expected $expectedSlug)"
+                        return "identity-check-failed"
+                    }
+                    Write-Info "$DisplayName — fork detected (origin=$actualSlug, upstream=$expectedSlug)"
                 }
             }
 
