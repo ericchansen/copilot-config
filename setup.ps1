@@ -1,34 +1,34 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Setup script for Copilot CLI configuration, skills, MCP servers, and external repos.
+    Setup script for Copilot CLI configuration, skills, and MCP servers.
 
 .DESCRIPTION
     Backs up existing ~/.copilot/ config, symlinks config files, patches config.json
-    with portable settings, symlinks local custom skills, clones/pulls external skill
-    repos, links their skills into ~/.copilot/skills/, builds local MCP servers,
+    with portable settings, symlinks local custom skills, builds local MCP servers,
     validates env vars, and generates ~/.copilot/mcp-config.json.
+
+    Community skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are installed via
+    Copilot CLI plugins, not managed by this script. See README.md for plugin install
+    commands.
 
     Idempotent — safe to re-run at any time.
 
-.PARAMETER WorkSkills
-    Include optional work-specific skill repos and MCP servers (msx-mcp, SPT-IQ).
-
-.PARAMETER PowerBI
-    Include Power BI Remote MCP server.
+.PARAMETER Work
+    Include work tools: installs work plugins (MSX-MCP, SPT-IQ) and enables
+    the Power BI Remote MCP server.
 
 .PARAMETER NonInteractive
-    Run without prompts (safe for cron jobs). Defaults: skip work skills,
-    skip replacing real dirs with junctions.
+    Run without prompts (safe for cron jobs). Defaults: skip replacing real dirs
+    with junctions.
 
 .EXAMPLE
     ./setup.ps1
-    ./setup.ps1 -WorkSkills -PowerBI
-    ./setup.ps1 -NonInteractive -WorkSkills
+    ./setup.ps1 -Work
+    ./setup.ps1 -NonInteractive
 #>
 param(
-    [switch]$WorkSkills,
-    [switch]$PowerBI,
+    [switch]$Work,
     [switch]$CleanOrphans,
     [switch]$NonInteractive
 )
@@ -66,82 +66,25 @@ $portableAllowedKeys = @(
 )
 
 # External skill repositories
-$externalRepos = @(
-    @{
-        Name        = "anthropic"
-        DisplayName = "anthropics/skills"
-        Repo        = "https://github.com/anthropics/skills.git"
-        CloneDir    = "anthropic-skills"
-        SkillsSubdir = "skills"
-        Category    = "base"
-        Exclude     = @(
-            "skill-creator", "mcp-builder", "algorithmic-art", "brand-guidelines",
-            "canvas-design", "doc-coauthoring", "internal-comms", "slack-gif-creator"
-        )
-    }
-    @{
-        Name        = "github"
-        DisplayName = "ericchansen/awesome-copilot"
-        Repo        = "https://github.com/ericchansen/awesome-copilot.git"
-        CloneDir    = "awesome-copilot"
-        SkillsSubdir = "skills"
-        Category    = "base"
-        Exclude     = @(
-            "git-commit", "make-repo-contribution", "copilot-cli-quickstart",
-            "microsoft-docs", "microsoft-skill-creator",
-            "agentic-eval", "finnish-humanizer", "legacy-circuit-mockups",
-            "nano-banana-pro-openrouter", "penpot-uiux-design", "scoutqa-test",
-            "snowflake-semanticview", "pdftk-server", "sponsor-finder",
-            "plantuml-ascii", "prd", "meeting-minutes", "webapp-testing"
-        )
-    }
+# All community and work skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are now
+# installed via Copilot CLI plugins — see README.md. No external repos are cloned.
+$externalRepos = @()
+
+# Plugins to install via `copilot plugin install`
+# Work = $true means the plugin is only installed when -Work is specified.
+$plugins = @(
+    @{ Name = "msx-mcp";  Source = "mcaps-microsoft/MSX-MCP"; Work = $true },
+    @{ Name = "spt-iq";   Source = "mcaps-microsoft/SPT-IQ";  Work = $true }
 )
 
-# Optional work-specific repos (included via -WorkSkills flag or interactive prompt)
-$optionalRepos = @(
-    @{
-        Name        = "msx-mcp"
-        DisplayName = "mcaps-microsoft/MSX-MCP"
-        Repo        = "https://github.com/mcaps-microsoft/MSX-MCP.git"
-        CloneDir    = "msx-mcp"
-        SkillsSubdir = "skills"
-        Category    = "work"
-        Exclude     = @()
-    }
-    @{
-        Name        = "spt-iq"
-        DisplayName = "mcaps-microsoft/SPT-IQ"
-        Repo        = "https://github.com/mcaps-microsoft/SPT-IQ.git"
-        CloneDir    = "SPT-IQ"
-        SkillsSubdir = "skills"
-        Category    = "work"
-        Exclude     = @()
-    }
-)
-
-# Resolve whether to include optional work repos
-$includeWorkSkills = $false
-if ($WorkSkills) {
-    $includeWorkSkills = $true
+# Resolve whether to include work tools (plugins + Power BI MCP server)
+$includeWork = $false
+if ($Work) {
+    $includeWork = $true
 } elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include work-specific skills (msx-mcp, SPT-IQ)? [y/N]"
+    $answer = Read-Host "  Include work tools? (MSX-MCP, SPT-IQ plugins + Power BI MCP) [y/N]"
     if ($answer -eq "y" -or $answer -eq "Y") {
-        $includeWorkSkills = $true
-    }
-}
-
-if ($includeWorkSkills) {
-    $externalRepos = $externalRepos + $optionalRepos
-}
-
-# Resolve whether to include Power BI
-$includePowerBI = $false
-if ($PowerBI) {
-    $includePowerBI = $true
-} elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include Power BI Remote MCP server? [y/N]"
-    if ($answer -eq "y" -or $answer -eq "Y") {
-        $includePowerBI = $true
+        $includeWork = $true
     }
 }
 
@@ -178,6 +121,10 @@ $script:summary = [ordered]@{
     McpServersFailed  = @()
     McpEnvMissing     = @()
     McpConfigGenerated = $false
+    PluginJunctionsCleaned = 0
+    PluginsInstalled  = @()
+    PluginsSkipped    = @()
+    PluginsFailed     = @()
 }
 
 # =============================================================================
@@ -863,6 +810,105 @@ if ($localSkills.Count -eq 0) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 7b: Clean up old anthropic/awesome-copilot skill junctions
+# ─────────────────────────────────────────────────────────────────────────────
+# These repos are now installed via Copilot CLI plugins, not manual cloning.
+# Remove any leftover junctions pointing into their old clone directories.
+Write-Step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot, msx-mcp, SPT-IQ)"
+
+$legacyPatterns = @("anthropic-skills", "awesome-copilot", "msx-mcp", "MSX-MCP", "SPT-IQ")
+$legacyCleaned = 0
+
+Get-ChildItem -Path $copilotSkillsHome -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    if ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        $target = (Get-Item $_.FullName -Force).Target
+        if ($target -is [System.Collections.IEnumerable] -and $target -isnot [string]) { $target = $target[0] }
+        if ($target) {
+            foreach ($pattern in $legacyPatterns) {
+                if ($target -match [regex]::Escape($pattern)) {
+                    Write-Warn "Removing legacy junction: $($_.Name) → $target"
+                    cmd /c rmdir "$($_.FullName)" 2>&1 | Out-Null
+                    $legacyCleaned++
+                    break
+                }
+            }
+        }
+    }
+}
+
+# Clean legacy entries from .external-paths.json
+$externalPathsFile = Join-Path $repoRoot ".external-paths.json"
+if (Test-Path $externalPathsFile) {
+    $externalPaths = Get-Content $externalPathsFile -Raw | ConvertFrom-Json
+    $legacyKeys = @("anthropic", "github", "msx-mcp", "spt-iq")
+    $cleaned = $false
+    foreach ($key in $legacyKeys) {
+        if ($externalPaths.PSObject.Properties[$key]) {
+            $externalPaths.PSObject.Properties.Remove($key)
+            $cleaned = $true
+        }
+    }
+    if ($cleaned) {
+        $externalPaths | ConvertTo-Json -Depth 5 | Set-Content $externalPathsFile -Encoding UTF8
+        Write-Info "Cleaned legacy entries from .external-paths.json"
+    }
+}
+
+if ($legacyCleaned -gt 0) {
+    Write-Success "Removed $legacyCleaned legacy skill junction(s)"
+    Write-Info "Install community skills via plugins instead:"
+    Write-Color "    copilot plugin install <name>@awesome-copilot" "Cyan"
+    Write-Color "    copilot plugin marketplace add anthropics/skills" "Cyan"
+    Write-Color "    copilot plugin install document-skills@anthropic-agent-skills" "Cyan"
+    $script:summary.PluginJunctionsCleaned = $legacyCleaned
+} else {
+    Write-Info "No legacy junctions to clean up"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 7c: Install Copilot CLI plugins
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Step "Step 7c: Install plugins"
+
+# Determine which plugins to install based on flags
+$pluginsToInstall = $plugins | Where-Object { -not $_.Work -or $includeWork }
+
+if ($pluginsToInstall.Count -eq 0) {
+    Write-Info "No plugins to install (use -Work to include work plugins)"
+} else {
+    # Get currently installed plugins
+    $installedRaw = ""
+    try {
+        $installedRaw = (& copilot plugin list 2>&1) | Out-String
+    } catch {
+        Write-Warn "Could not list installed plugins: $_"
+    }
+
+    foreach ($plugin in $pluginsToInstall) {
+        if ($installedRaw -match [regex]::Escape($plugin.Name)) {
+            Write-Info "$($plugin.Name) already installed"
+            $script:summary.PluginsSkipped += $plugin.Name
+        } else {
+            Write-Info "Installing $($plugin.Name) from $($plugin.Source)..."
+            try {
+                $output = & copilot plugin install $plugin.Source 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "$($plugin.Name) installed"
+                    $script:summary.PluginsInstalled += $plugin.Name
+                } else {
+                    Write-Warn "$($plugin.Name) install returned exit code $LASTEXITCODE"
+                    Write-Warn "  $($output | Out-String)"
+                    $script:summary.PluginsFailed += $plugin.Name
+                }
+            } catch {
+                Write-Err "Failed to install $($plugin.Name): $_"
+                $script:summary.PluginsFailed += $plugin.Name
+            }
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 8: Clone/pull external skill repos and symlink
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Step "Step 8: External skill repositories"
@@ -1071,8 +1117,7 @@ $mcpServers = (Get-Content $mcpServersJsonPath -Raw | ConvertFrom-Json).servers
 
 # Determine enabled categories
 $enabledCategories = @("base")
-if ($includeWorkSkills) { $enabledCategories += "work" }
-if ($includePowerBI)    { $enabledCategories += "powerbi" }
+if ($includeWork)    { $enabledCategories += "powerbi" }
 
 $enabledServers = $mcpServers | Where-Object { $enabledCategories -contains $_.category }
 
@@ -1440,6 +1485,23 @@ if ($script:summary.McpConfigGenerated) {
     if ($script:summary.McpEnvMissing.Count -gt 0) {
         Write-Color "    Env missing:    $($script:summary.McpEnvMissing -join ', ')" "Yellow"
     }
+}
+
+if ($script:summary.PluginJunctionsCleaned -gt 0) {
+    Write-Host ""
+    Write-Color "  Legacy cleanup:" "Cyan"
+    Write-Color "    Junctions removed: $($script:summary.PluginJunctionsCleaned) (now use plugins)" "Yellow"
+}
+
+$pInstalled = $script:summary.PluginsInstalled.Count
+$pSkipped   = $script:summary.PluginsSkipped.Count
+$pFailed    = $script:summary.PluginsFailed.Count
+if ($pInstalled -gt 0 -or $pSkipped -gt 0 -or $pFailed -gt 0) {
+    Write-Host ""
+    Write-Color "  Plugins:" "Cyan"
+    if ($pInstalled -gt 0) { Write-Color "    Installed:      $($script:summary.PluginsInstalled -join ', ')" "Green" }
+    if ($pSkipped   -gt 0) { Write-Color "    Already there:  $($script:summary.PluginsSkipped -join ', ')" "Cyan" }
+    if ($pFailed    -gt 0) { Write-Color "    Failed:         $($script:summary.PluginsFailed -join ', ')" "Red" }
 }
 
 Write-Host ""

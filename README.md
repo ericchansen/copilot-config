@@ -25,17 +25,17 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
    **PowerShell (Windows):**
    ```powershell
    ./setup.ps1                                           # Interactive — prompts for options
-   ./setup.ps1 -WorkSkills -PowerBI                      # Include work skills + Power BI
+   ./setup.ps1 -Work                                     # Include work tools (MSX-MCP, SPT-IQ, Power BI)
    ./setup.ps1 -NonInteractive                           # No prompts, base only (safe for cron)
-   ./setup.ps1 -NonInteractive -WorkSkills -PowerBI      # No prompts, everything enabled
+   ./setup.ps1 -NonInteractive -Work                     # No prompts, everything enabled
    ```
 
    **Bash (macOS/Linux):**
    ```bash
    ./setup.sh                                            # Interactive — prompts for options
-   ./setup.sh --work-skills --power-bi                   # Include work skills + Power BI
+   ./setup.sh --work                                     # Include work tools (MSX-MCP, SPT-IQ, Power BI)
    ./setup.sh --non-interactive                          # No prompts, base only (safe for cron)
-   ./setup.sh --non-interactive --work-skills --power-bi # No prompts, everything enabled
+   ./setup.sh --non-interactive --work                   # No prompts, everything enabled
    ```
 
    > **Note:** The Bash scripts require `jq` for JSON processing and Bash 4+. On macOS, install both with `brew install bash jq`.
@@ -45,8 +45,7 @@ The setup script will:
 - Back up your existing `~/.copilot/` config
 - Symlink instructions and skills into `~/.copilot/`
 - Patch your `config.json` with portable settings (without touching auth)
-- Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/ericchansen/awesome-copilot)) and link curated skills
-- Optionally clone work-specific repos (msx-mcp, SPT-IQ) when requested
+- **Clean up legacy skill junctions** — removes old anthropic/awesome-copilot/msx-mcp/SPT-IQ junctions from previous setups
 - Build local MCP servers (clone, install deps, compile)
 - Validate required environment variables (prompt if missing)
 - Generate `~/.copilot/mcp-config.json` with correct OS paths
@@ -138,8 +137,7 @@ MCP server configuration is defined in `mcp-servers.json` and generated into `~/
 
 | Server | Flag | Type | Purpose |
 |--------|------|------|---------|
-| msx-mcp | `-WorkSkills` | local (node) | MSX deal/account tools |
-| powerbi-remote | `-PowerBI` | http | Power BI Fabric API |
+| powerbi-remote | `-Work` | http | Power BI Fabric API |
 
 ## Updating
 
@@ -176,15 +174,50 @@ Multi-model brainstorming using Claude Opus 4.6, GPT-5.3-Codex, and Gemini 3 Pro
 
 **Trigger:** "summon knights of the round table to review..."
 
-## External Skills
+## Plugins (installed separately)
 
-Setup links curated skills from:
-- **[anthropics/skills](https://github.com/anthropics/skills)** — docx, pdf, pptx, xlsx, frontend-design, web-artifacts-builder, webapp-testing, theme-factory
-- **[ericchansen/awesome-copilot](https://github.com/ericchansen/awesome-copilot)** — 27 skills covering Azure, GitHub CLI, Chrome DevTools, web forms, diagrams, and more
+Community skills are installed via Copilot CLI's plugin system, not managed by this repo's setup scripts.
 
-### Optional Work Skills (`-WorkSkills`)
-- **[mcaps-microsoft/MSX-MCP](https://github.com/mcaps-microsoft/MSX-MCP)**
-- **[mcaps-microsoft/SPT-IQ](https://github.com/mcaps-microsoft/SPT-IQ)**
+### awesome-copilot (pre-registered marketplace)
+
+The `awesome-copilot` marketplace is built into Copilot CLI — no setup needed. Browse and install themed skill bundles:
+
+```bash
+copilot plugin install project-planning@awesome-copilot
+copilot plugin install testing-automation@awesome-copilot
+copilot plugin install csharp-dotnet-development@awesome-copilot
+# See all: copilot plugin search @awesome-copilot
+```
+
+### anthropic-agent-skills
+
+Add the Anthropic marketplace, then install plugins:
+
+```bash
+copilot plugin marketplace add anthropics/skills
+copilot plugin install document-skills@anthropic-agent-skills    # xlsx, docx, pptx, pdf
+copilot plugin install example-skills@anthropic-agent-skills     # frontend-design, web-artifacts, etc.
+```
+
+### MSX-MCP
+
+```bash
+copilot plugin install mcaps-microsoft/MSX-MCP
+```
+
+### SPT-IQ
+
+```bash
+copilot plugin install mcaps-microsoft/SPT-IQ
+```
+
+### Managing plugins
+
+```bash
+copilot plugin list         # Show installed plugins
+copilot plugin update       # Update all plugins
+copilot plugin remove <name> # Uninstall a plugin
+```
 
 ## About Agent Skills
 
