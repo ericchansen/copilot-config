@@ -25,17 +25,17 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
    **PowerShell (Windows):**
    ```powershell
    ./setup.ps1                                           # Interactive — prompts for options
-   ./setup.ps1 -WorkSkills -PowerBI                      # Include work skills + Power BI
+   ./setup.ps1 -PowerBI                                  # Include Power BI
    ./setup.ps1 -NonInteractive                           # No prompts, base only (safe for cron)
-   ./setup.ps1 -NonInteractive -WorkSkills -PowerBI      # No prompts, everything enabled
+   ./setup.ps1 -NonInteractive -PowerBI                  # No prompts, everything enabled
    ```
 
    **Bash (macOS/Linux):**
    ```bash
    ./setup.sh                                            # Interactive — prompts for options
-   ./setup.sh --work-skills --power-bi                   # Include work skills + Power BI
+   ./setup.sh --power-bi                                 # Include Power BI
    ./setup.sh --non-interactive                          # No prompts, base only (safe for cron)
-   ./setup.sh --non-interactive --work-skills --power-bi # No prompts, everything enabled
+   ./setup.sh --non-interactive --power-bi               # No prompts, everything enabled
    ```
 
    > **Note:** The Bash scripts require `jq` for JSON processing and Bash 4+. On macOS, install both with `brew install bash jq`.
@@ -45,8 +45,7 @@ The setup script will:
 - Back up your existing `~/.copilot/` config
 - Symlink instructions and skills into `~/.copilot/`
 - Patch your `config.json` with portable settings (without touching auth)
-- **Clean up legacy skill junctions** — removes old anthropic/awesome-copilot junctions from previous setups
-- Optionally clone work-specific repos (SPT-IQ) when requested
+- **Clean up legacy skill junctions** — removes old anthropic/awesome-copilot/msx-mcp/SPT-IQ junctions from previous setups
 - Build local MCP servers (clone, install deps, compile)
 - Validate required environment variables (prompt if missing)
 - Generate `~/.copilot/mcp-config.json` with correct OS paths
@@ -206,6 +205,12 @@ copilot plugin install example-skills@anthropic-agent-skills     # frontend-desi
 copilot plugin install mcaps-microsoft/MSX-MCP
 ```
 
+### SPT-IQ
+
+```bash
+copilot plugin install mcaps-microsoft/SPT-IQ
+```
+
 ### Managing plugins
 
 ```bash
@@ -213,9 +218,6 @@ copilot plugin list         # Show installed plugins
 copilot plugin update       # Update all plugins
 copilot plugin remove <name> # Uninstall a plugin
 ```
-
-### Optional Work Skills (`-WorkSkills`)
-- **[mcaps-microsoft/SPT-IQ](https://github.com/mcaps-microsoft/SPT-IQ)** — cloned and linked by setup scripts (no plugin support)
 
 ## About Agent Skills
 

@@ -21,7 +21,6 @@ This repo manages GitHub Copilot CLI configuration, custom skills, and MCP/LSP s
 | `.copilot/lsp-config.json` | LSP server configuration | → `~/.copilot/lsp-config.json` |
 | `.copilot/config.portable.json` | Portable settings (model, theme, etc.) | **No** — patched into `config.json` |
 | `.copilot/skills/` | Custom skills (local to this repo) | Directory junctions |
-| `external/` | Clone location for work repos (SPT-IQ) | — |
 | `setup.ps1` / `setup.sh` | Install: symlink configs, patch settings, link skills, clean legacy junctions | — |
 | `restore.ps1` / `restore.sh` | Uninstall: remove symlinks, optionally restore backups | — |
 | `sync-skills.ps1` / `sync-skills.sh` | Adopt untracked skills from `~/.copilot/skills/` | — |
@@ -50,9 +49,7 @@ Don't just run `git status`. Also compare `~/.copilot/` against the repo for **n
 ## Skills Architecture
 
 - **Local skills** (`.copilot/skills/`) — managed by this repo, symlinked by setup scripts
-- **Community skills** (awesome-copilot, anthropic) — installed via `copilot plugin install`, NOT managed by setup scripts
-- **Work skills** (SPT-IQ) — cloned into `external/` by setup scripts with `-WorkSkills` flag
-- **Plugin skills** (msx-mcp) — installed via `copilot plugin install mcaps-microsoft/MSX-MCP`
+- **Community skills** (awesome-copilot, anthropic, msx-mcp, SPT-IQ) — installed via `copilot plugin install`, NOT managed by setup scripts
 
 See `README.md` for plugin install commands.
 

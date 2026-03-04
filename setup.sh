@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Setup script for Copilot CLI configuration, skills, MCP servers, and plugins.
+# Setup script for Copilot CLI configuration, skills, and MCP servers.
 #
 # Backs up existing ~/.copilot/ config, symlinks config files, patches config.json
-# with portable settings, symlinks local custom skills, clones/pulls optional skill
-# repos (SPT-IQ), builds local MCP servers, validates env vars, and generates
-# ~/.copilot/mcp-config.json.
+# with portable settings, symlinks local custom skills, builds local MCP servers,
+# validates env vars, and generates ~/.copilot/mcp-config.json.
 #
-# Community skills from awesome-copilot and anthropic are installed via Copilot CLI
-# plugins, not managed by this script. See README.md for plugin install commands.
+# Community skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are installed via
+# Copilot CLI plugins, not managed by this script. See README.md for plugin install
+# commands.
 #
 # Idempotent — safe to re-run at any time.
 #
 # Usage:
 #   ./setup.sh                                            # Interactive — prompts for options
-#   ./setup.sh --work-skills --power-bi                   # Include work skills + Power BI
+#   ./setup.sh --power-bi                                 # Include Power BI
 #   ./setup.sh --non-interactive                          # No prompts, base only (safe for cron)
-#   ./setup.sh --non-interactive --work-skills --power-bi # No prompts, everything enabled
+#   ./setup.sh --non-interactive --power-bi               # No prompts, everything enabled
 
 set -uo pipefail
 
@@ -64,41 +64,24 @@ CONFIG_FILE_LINKS=("copilot-instructions.md" "lsp-config.json")
 PORTABLE_ALLOWED_KEYS=("banner" "model" "render_markdown" "theme" "experimental" "reasoning_effort")
 
 # External skill repositories (JSON)
-# Community skills from awesome-copilot and anthropic are now installed via
-# Copilot CLI plugins — see README.md. Only work-specific repos remain here.
+# All community and work skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are now
+# installed via Copilot CLI plugins — see README.md. No external repos are cloned.
 EXTERNAL_REPOS_JSON='[]'
-
-OPTIONAL_REPOS_JSON=$(cat <<'REPOS_EOF'
-[
-  {
-    "name": "spt-iq",
-    "displayName": "mcaps-microsoft/SPT-IQ",
-    "repo": "https://github.com/mcaps-microsoft/SPT-IQ.git",
-    "cloneDir": "SPT-IQ",
-    "skillsSubdir": "skills",
-    "category": "work",
-    "exclude": []
-  }
-]
-REPOS_EOF
-)
 
 # =============================================================================
 # Parse command-line flags
 # =============================================================================
-WORK_SKILLS=false
 POWER_BI=false
 CLEAN_ORPHANS=false
 NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --work-skills)    WORK_SKILLS=true ;;
         --power-bi)       POWER_BI=true ;;
         --clean-orphans)  CLEAN_ORPHANS=true ;;
         --non-interactive) NON_INTERACTIVE=true ;;
         -h|--help)
-            echo "Usage: $0 [--work-skills] [--power-bi] [--clean-orphans] [--non-interactive]"
+            echo "Usage: $0 [--power-bi] [--clean-orphans] [--non-interactive]"
             exit 0 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -533,14 +516,6 @@ jq_inplace() {
 # Interactive option prompts
 # =============================================================================
 
-INCLUDE_WORK_SKILLS=false
-if $WORK_SKILLS; then
-    INCLUDE_WORK_SKILLS=true
-elif ! $NON_INTERACTIVE; then
-    read -rp "  Include work-specific skills (SPT-IQ)? [y/N] " answer
-    [[ "${answer,,}" == "y" ]] && INCLUDE_WORK_SKILLS=true
-fi
-
 INCLUDE_POWER_BI=false
 if $POWER_BI; then
     INCLUDE_POWER_BI=true
@@ -557,12 +532,8 @@ elif ! $NON_INTERACTIVE; then
     [[ "${answer,,}" == "y" ]] && INCLUDE_CLEAN_ORPHANS=true
 fi
 
-# Merge repos if work skills included
-if $INCLUDE_WORK_SKILLS; then
-    REPOS_JSON=$(echo "$EXTERNAL_REPOS_JSON" "$OPTIONAL_REPOS_JSON" | jq -s 'add')
-else
-    REPOS_JSON="$EXTERNAL_REPOS_JSON"
-fi
+# No external repos to merge — all skills are installed via plugins
+REPOS_JSON="$EXTERNAL_REPOS_JSON"
 
 # =============================================================================
 # Main Script
@@ -802,7 +773,7 @@ fi
 # Step 7b: Clean up old anthropic/awesome-copilot skill junctions
 # ─────────────────────────────────────────────────────────────────────────────
 # These repos are now installed via Copilot CLI plugins, not manual cloning.
-write_step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot)"
+write_step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot, msx-mcp, SPT-IQ)"
 
 legacy_cleaned=0
 
@@ -814,7 +785,7 @@ if [[ -d "$COPILOT_SKILLS_HOME" ]]; then
 
         if [[ -L "$dir" ]]; then
             target=$(readlink -f "$dir" 2>/dev/null || echo "")
-            if [[ "$target" == *"anthropic-skills"* ]] || [[ "$target" == *"awesome-copilot"* ]] || [[ "$target" == *"msx-mcp"* ]]; then
+            if [[ "$target" == *"anthropic-skills"* ]] || [[ "$target" == *"awesome-copilot"* ]] || [[ "$target" == *"msx-mcp"* ]] || [[ "$target" == *"MSX-MCP"* ]] || [[ "$target" == *"SPT-IQ"* ]]; then
                 write_warn "Removing legacy junction: $skill_name → $target"
                 rm -f "$dir" 2>/dev/null || rm -rf "$dir" 2>/dev/null
                 ((legacy_cleaned++))
@@ -826,7 +797,7 @@ fi
 # Clean legacy entries from .external-paths.json
 EXTERNAL_PATHS_FILE="$REPO_ROOT/.external-paths.json"
 if [[ -f "$EXTERNAL_PATHS_FILE" ]]; then
-    for key in anthropic github msx-mcp; do
+    for key in anthropic github msx-mcp spt-iq; do
         if jq -e "has(\"$key\")" "$EXTERNAL_PATHS_FILE" >/dev/null 2>&1; then
             jq_inplace "del(.$key)" "$EXTERNAL_PATHS_FILE"
             write_info "Cleaned '$key' from .external-paths.json"
@@ -1015,7 +986,6 @@ write_step "Step 9: Resolve & build local MCP servers"
 
 # Determine enabled categories
 ENABLED_CATEGORIES='["base"]'
-$INCLUDE_WORK_SKILLS && ENABLED_CATEGORIES=$(echo "$ENABLED_CATEGORIES" | jq '. + ["work"]')
 $INCLUDE_POWER_BI && ENABLED_CATEGORIES=$(echo "$ENABLED_CATEGORIES" | jq '. + ["powerbi"]')
 
 ENABLED_SERVERS=$(jq -c --argjson cats "$ENABLED_CATEGORIES" '[.servers[] | select(.category as $c | $cats | index($c) != null)]' "$MCP_SERVERS_JSON")

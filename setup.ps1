@@ -1,36 +1,32 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Setup script for Copilot CLI configuration, skills, MCP servers, and plugins.
+    Setup script for Copilot CLI configuration, skills, and MCP servers.
 
 .DESCRIPTION
     Backs up existing ~/.copilot/ config, symlinks config files, patches config.json
-    with portable settings, symlinks local custom skills, clones/pulls optional skill
-    repos (SPT-IQ), builds local MCP servers, validates env vars, and generates
-    ~/.copilot/mcp-config.json.
+    with portable settings, symlinks local custom skills, builds local MCP servers,
+    validates env vars, and generates ~/.copilot/mcp-config.json.
 
-    Community skills from awesome-copilot and anthropic are installed via Copilot CLI
-    plugins, not managed by this script. See README.md for plugin install commands.
+    Community skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are installed via
+    Copilot CLI plugins, not managed by this script. See README.md for plugin install
+    commands.
 
     Idempotent — safe to re-run at any time.
-
-.PARAMETER WorkSkills
-    Include optional work-specific skill repos and MCP servers (SPT-IQ).
 
 .PARAMETER PowerBI
     Include Power BI Remote MCP server.
 
 .PARAMETER NonInteractive
-    Run without prompts (safe for cron jobs). Defaults: skip work skills,
-    skip replacing real dirs with junctions.
+    Run without prompts (safe for cron jobs). Defaults: skip replacing real dirs
+    with junctions.
 
 .EXAMPLE
     ./setup.ps1
-    ./setup.ps1 -WorkSkills -PowerBI
-    ./setup.ps1 -NonInteractive -WorkSkills
+    ./setup.ps1 -PowerBI
+    ./setup.ps1 -NonInteractive
 #>
 param(
-    [switch]$WorkSkills,
     [switch]$PowerBI,
     [switch]$CleanOrphans,
     [switch]$NonInteractive
@@ -69,37 +65,9 @@ $portableAllowedKeys = @(
 )
 
 # External skill repositories
-# (Community skills from awesome-copilot and anthropic are now installed via
-#  Copilot CLI plugins — see README.md. Only work-specific repos remain here.)
+# All community and work skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are now
+# installed via Copilot CLI plugins — see README.md. No external repos are cloned.
 $externalRepos = @()
-
-# Optional work-specific repos (included via -WorkSkills flag or interactive prompt)
-$optionalRepos = @(
-    @{
-        Name        = "spt-iq"
-        DisplayName = "mcaps-microsoft/SPT-IQ"
-        Repo        = "https://github.com/mcaps-microsoft/SPT-IQ.git"
-        CloneDir    = "SPT-IQ"
-        SkillsSubdir = "skills"
-        Category    = "work"
-        Exclude     = @()
-    }
-)
-
-# Resolve whether to include optional work repos
-$includeWorkSkills = $false
-if ($WorkSkills) {
-    $includeWorkSkills = $true
-} elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include work-specific skills (SPT-IQ)? [y/N]"
-    if ($answer -eq "y" -or $answer -eq "Y") {
-        $includeWorkSkills = $true
-    }
-}
-
-if ($includeWorkSkills) {
-    $externalRepos = $externalRepos + $optionalRepos
-}
 
 # Resolve whether to include Power BI
 $includePowerBI = $false
@@ -835,9 +803,9 @@ if ($localSkills.Count -eq 0) {
 # ─────────────────────────────────────────────────────────────────────────────
 # These repos are now installed via Copilot CLI plugins, not manual cloning.
 # Remove any leftover junctions pointing into their old clone directories.
-Write-Step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot)"
+Write-Step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot, msx-mcp, SPT-IQ)"
 
-$legacyPatterns = @("anthropic-skills", "awesome-copilot", "msx-mcp")
+$legacyPatterns = @("anthropic-skills", "awesome-copilot", "msx-mcp", "MSX-MCP", "SPT-IQ")
 $legacyCleaned = 0
 
 Get-ChildItem -Path $copilotSkillsHome -Directory -ErrorAction SilentlyContinue | ForEach-Object {
@@ -861,7 +829,7 @@ Get-ChildItem -Path $copilotSkillsHome -Directory -ErrorAction SilentlyContinue 
 $externalPathsFile = Join-Path $repoRoot ".external-paths.json"
 if (Test-Path $externalPathsFile) {
     $externalPaths = Get-Content $externalPathsFile -Raw | ConvertFrom-Json
-    $legacyKeys = @("anthropic", "github", "msx-mcp")
+    $legacyKeys = @("anthropic", "github", "msx-mcp", "spt-iq")
     $cleaned = $false
     foreach ($key in $legacyKeys) {
         if ($externalPaths.PSObject.Properties[$key]) {
@@ -1095,7 +1063,6 @@ $mcpServers = (Get-Content $mcpServersJsonPath -Raw | ConvertFrom-Json).servers
 
 # Determine enabled categories
 $enabledCategories = @("base")
-if ($includeWorkSkills) { $enabledCategories += "work" }
 if ($includePowerBI)    { $enabledCategories += "powerbi" }
 
 $enabledServers = $mcpServers | Where-Object { $enabledCategories -contains $_.category }
