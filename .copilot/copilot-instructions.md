@@ -12,7 +12,11 @@
 | **Cite everything** | Every stat/claim needs a clickable URL |
 | **Challenge assumptions** | Question approaches, push back with evidence |
 | **Research first** | Use Context7 / Microsoft Learn MCP before implementing |
+| **✅ Verify before claiming** | **EXHAUSTIVELY test/check yourself** (load page, hit endpoints, check data, take screenshots) before saying it works — a health check or HTTP 200 is NOT verification. Triple-check. |
+| **🔬 Exhaust testing abilities** | **NEVER say "done" until double/triple checked** — run builds, run tests, load URLs, query DBs. Leave no stone unturned. |
 | **🔐 Multiple GitHub accounts** | **`gh auth status` when git/gh ops fail** — wrong account is the most common cause |
+| **🔍 Check before asking** | **NEVER ask the user a question you could answer by reading a file, running a command, or checking yourself** — investigate first, ask only when you genuinely can't determine the answer |
+| **🚫 Never remove features silently** | **NEVER remove features, capabilities, or functionality based on internal reasoning without asking the user first** — even if it seems like a good idea |
 
 
 ## Git Workflow
@@ -42,7 +46,7 @@
 2. Start test infra if needed (`docker-compose up -d`)
 3. Run FULL unit test suite—all tests, not just affected
 4. **⚠️ RUN E2E TESTS LOCALLY — THIS IS MANDATORY**
-   - Command: `npx playwright test --project="Desktop Edge"`
+   - Command: `npx playwright test --project="msedge"`
    - Do NOT skip this step. Do NOT push without running E2E first.
    - E2E tests catch integration bugs that unit tests miss.
    - If E2E tests fail locally, they WILL fail in CI. Fix them first.
@@ -82,11 +86,18 @@ git commit -m "<type>: <description>"  # Use git-commit skill
 - **Always offer to create a PR** after pushing a branch — submit work via PRs, not direct pushes
 - If the upstream repo is not owned by the user (e.g., a Microsoft org repo), fork first, then open a PR from the fork
 
-### Creating PRs
-- **⚠️ NEVER use inline `--body` with `gh pr create`** — backticks and special characters get mangled by PowerShell escaping. Always use `--body-file`:
-  1. Write the PR body to a temp file (e.g., `pr-body.md`)
-  2. Run `gh pr create --title "..." --body-file pr-body.md`
-  3. Delete the temp file after PR creation
+### Creating PRs and Issues
+- **⚠️ NEVER use inline `--body` with ANY `gh` command** (`gh pr create`, `gh pr edit`, `gh issue create`, etc.) — backticks and special characters get mangled by PowerShell escaping (backtick is PS's escape char, so `\`` becomes literal `\`). **Always use `--body-file`:**
+  ```powershell
+  $body = @"
+  ## Summary
+  Fixed the bug in `auth.js`...
+  "@
+  $body | Out-File -FilePath "$env:TEMP\gh-body.md" -Encoding utf8NoBOM
+  gh pr create --title "fix: Auth bug" --body-file "$env:TEMP\gh-body.md" --base main
+  Remove-Item "$env:TEMP\gh-body.md" -ErrorAction SilentlyContinue
+  ```
+- **This applies to `gh pr edit --body` too** — use `--body-file` for edits
 - **PR body format:** concise and scannable
   - Short summary sentence (what and why)
   - Grouped bullet list of changes (use `###` subsections if 3+ categories)
@@ -141,7 +152,7 @@ git -c credential.helper="!gh auth git-credential" pull
   - **ALWAYS run E2E tests locally before pushing**: `npx playwright test --project="Desktop Edge"`
   - Use **Microsoft Edge only** — Chrome is NOT available
   - MCP browser tools: Already configured for Edge
-  - CLI tests: Always use `--project="Desktop Edge"`, never "Desktop Chrome"
+  - CLI tests: Always use `--project="msedge"`, never "Desktop Chrome"
   - CI should also run only Edge to keep pipeline times reasonable
 - **Docker Containers**:
   - **NEVER stop, remove, or modify containers from other projects**
@@ -231,6 +242,48 @@ _Based on analysis of 153 sessions from Jan–Feb 2026._
 - **Using Knights of the Round Table** for multi-model code review
 - **Asking for research first** ("Use Context7 and Microsoft Learn MCP") — this catches bad practices early
 - **Git workflow rules** are now well-established in instructions and producing clean results
+
+## Verification Before Responding — EXHAUSTIVE
+
+- **NEVER claim something works until you have EXHAUSTIVELY verified it** — this is a HARD BLOCK, not a suggestion
+- **NEVER say "done" until you have double or even triple checked** — exhaust ALL your testing abilities before reporting success. If you can run it, run it. If you can load it, load it. If you can query it, query it. Leave no stone unturned.
+- **Triple-check before saying "done":** A health check or HTTP 200 is NOT verification. You must validate the ACTUAL USER EXPERIENCE end-to-end:
+  1. **Web apps:** Open the real URL in the browser (Playwright MCP). Take a screenshot. Confirm the UI renders correctly with real data visible. Check for errors in console logs.
+  2. **API endpoints:** Hit the actual endpoints with real auth tokens/parameters. Verify response bodies contain expected data, not just status codes.
+  3. **Deployments:** After deploying, wait for the deployment to finish. Then load the production URL. Verify login works. Verify data loads. Take a screenshot as proof.
+  4. **Data imports/syncs:** Query the database AFTER import. Verify record counts, check for duplicates, spot-check actual values. Load the UI that displays this data and confirm it looks correct.
+  5. **Bug fixes:** Reproduce the original bug scenario. Confirm it no longer occurs. Check that the fix didn't introduce regressions.
+- **What is NOT acceptable verification:**
+  - A health check returning `{"status": "ok"}`
+  - An HTTP 200 on a static page
+  - "The command exited with code 0"
+  - "Tests pass" (tests are necessary but not sufficient — the real app must work too)
+  - Assuming that because one endpoint works, everything works
+- **If you cannot fully verify**, say exactly what you checked and what you couldn't check: "I verified X, Y, and Z. I was unable to verify W because [reason]."
+- **NEVER say "it's working" or "it's done" without evidence you personally witnessed the working state.**
+
+## Security — PII and Authentication
+
+- **NEVER suggest removing authentication from any app that handles PII** — not even temporarily, not even for demos
+- If the data contains real names, emails, proficiency levels, performance data, or any personally identifiable information, auth is MANDATORY
+- "Demo mode" / "no-auth mode" is acceptable ONLY for local development with synthetic data — NEVER in production with real data
+- When in doubt about whether data is PII, assume it IS and keep auth
+
+## Autonomy — Check Before Asking
+
+- **NEVER ask the user a question you could answer yourself** — read the file, run the command, check the logs, hit the endpoint. Investigate FIRST.
+- If you have the tools to determine the answer, USE THEM before asking.
+- Only ask the user when you genuinely cannot determine the answer through your own capabilities.
+- **Example of a violation**: User says "fix the text in the PR." You ask "what specifically needs fixing?" instead of reading the PR body yourself and seeing the broken formatting. The answer was one tool call away.
+- **This is not optional.** The user's time is more valuable than your tool calls. Burn tokens, not the user's patience.
+
+## Feature Preservation — Never Remove Without Permission
+
+- **NEVER remove features, capabilities, or functionality based on internal reasoning without asking the user first.**
+- Even if the feature seems broken, redundant, deprecated, or like a "good idea" to remove — ASK FIRST.
+- This applies to: code features, CLI commands, API endpoints, workflow steps, configuration options, documentation sections, dependencies, and anything else the user may rely on.
+- If you think something should be removed, present the case and let the user decide.
+- **Removing features silently is a trust violation.** The user must always be in control of what their project does.
 
 ## Citations
 
