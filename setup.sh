@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Setup script for Copilot CLI configuration, skills, MCP servers, and external repos.
+# Setup script for Copilot CLI configuration, skills, MCP servers, and plugins.
 #
 # Backs up existing ~/.copilot/ config, symlinks config files, patches config.json
-# with portable settings, symlinks local custom skills, clones/pulls external skill
-# repos, links their skills into ~/.copilot/skills/, builds local MCP servers,
-# validates env vars, and generates ~/.copilot/mcp-config.json.
+# with portable settings, symlinks local custom skills, clones/pulls optional skill
+# repos (SPT-IQ), builds local MCP servers, validates env vars, and generates
+# ~/.copilot/mcp-config.json.
+#
+# Community skills from awesome-copilot and anthropic are installed via Copilot CLI
+# plugins, not managed by this script. See README.md for plugin install commands.
 #
 # Idempotent — safe to re-run at any time.
 #
@@ -61,51 +64,12 @@ CONFIG_FILE_LINKS=("copilot-instructions.md" "lsp-config.json")
 PORTABLE_ALLOWED_KEYS=("banner" "model" "render_markdown" "theme" "experimental" "reasoning_effort")
 
 # External skill repositories (JSON)
-EXTERNAL_REPOS_JSON=$(cat <<'REPOS_EOF'
-[
-  {
-    "name": "anthropic",
-    "displayName": "anthropics/skills",
-    "repo": "https://github.com/anthropics/skills.git",
-    "cloneDir": "anthropic-skills",
-    "skillsSubdir": "skills",
-    "category": "base",
-    "exclude": [
-      "skill-creator", "mcp-builder", "algorithmic-art", "brand-guidelines",
-      "canvas-design", "doc-coauthoring", "internal-comms", "slack-gif-creator"
-    ]
-  },
-  {
-    "name": "github",
-    "displayName": "ericchansen/awesome-copilot",
-    "repo": "https://github.com/ericchansen/awesome-copilot.git",
-    "cloneDir": "awesome-copilot",
-    "skillsSubdir": "skills",
-    "category": "base",
-    "exclude": [
-      "git-commit", "make-repo-contribution", "copilot-cli-quickstart",
-      "microsoft-docs", "microsoft-skill-creator",
-      "agentic-eval", "finnish-humanizer", "legacy-circuit-mockups",
-      "nano-banana-pro-openrouter", "penpot-uiux-design", "scoutqa-test",
-      "snowflake-semanticview", "pdftk-server", "sponsor-finder",
-      "plantuml-ascii", "prd", "meeting-minutes", "webapp-testing"
-    ]
-  }
-]
-REPOS_EOF
-)
+# Community skills from awesome-copilot and anthropic are now installed via
+# Copilot CLI plugins — see README.md. Only work-specific repos remain here.
+EXTERNAL_REPOS_JSON='[]'
 
 OPTIONAL_REPOS_JSON=$(cat <<'REPOS_EOF'
 [
-  {
-    "name": "msx-mcp",
-    "displayName": "mcaps-microsoft/MSX-MCP",
-    "repo": "https://github.com/mcaps-microsoft/MSX-MCP.git",
-    "cloneDir": "msx-mcp",
-    "skillsSubdir": "skills",
-    "category": "work",
-    "exclude": []
-  },
   {
     "name": "spt-iq",
     "displayName": "mcaps-microsoft/SPT-IQ",
@@ -162,6 +126,7 @@ declare -a SUMMARY_MCP_BUILT=()
 declare -a SUMMARY_MCP_FAILED=()
 declare -a SUMMARY_MCP_ENV_MISSING=()
 SUMMARY_MCP_GENERATED=false
+SUMMARY_PLUGIN_JUNCTIONS_CLEANED=0
 
 # =============================================================================
 # Helper Functions
@@ -572,7 +537,7 @@ INCLUDE_WORK_SKILLS=false
 if $WORK_SKILLS; then
     INCLUDE_WORK_SKILLS=true
 elif ! $NON_INTERACTIVE; then
-    read -rp "  Include work-specific skills (msx-mcp, SPT-IQ)? [y/N] " answer
+    read -rp "  Include work-specific skills (SPT-IQ)? [y/N] " answer
     [[ "${answer,,}" == "y" ]] && INCLUDE_WORK_SKILLS=true
 fi
 
@@ -831,6 +796,53 @@ else
                 SUMMARY_SKILLS_FAILED+=("$skill_name") ;;
         esac
     done
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 7b: Clean up old anthropic/awesome-copilot skill junctions
+# ─────────────────────────────────────────────────────────────────────────────
+# These repos are now installed via Copilot CLI plugins, not manual cloning.
+write_step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot)"
+
+legacy_cleaned=0
+
+if [[ -d "$COPILOT_SKILLS_HOME" ]]; then
+    for dir in "$COPILOT_SKILLS_HOME"/*/; do
+        [[ ! -d "$dir" ]] && continue
+        dir="${dir%/}"
+        skill_name=$(basename "$dir")
+
+        if [[ -L "$dir" ]]; then
+            target=$(readlink -f "$dir" 2>/dev/null || echo "")
+            if [[ "$target" == *"anthropic-skills"* ]] || [[ "$target" == *"awesome-copilot"* ]] || [[ "$target" == *"msx-mcp"* ]]; then
+                write_warn "Removing legacy junction: $skill_name → $target"
+                rm -f "$dir" 2>/dev/null || rm -rf "$dir" 2>/dev/null
+                ((legacy_cleaned++))
+            fi
+        fi
+    done
+fi
+
+# Clean legacy entries from .external-paths.json
+EXTERNAL_PATHS_FILE="$REPO_ROOT/.external-paths.json"
+if [[ -f "$EXTERNAL_PATHS_FILE" ]]; then
+    for key in anthropic github msx-mcp; do
+        if jq -e "has(\"$key\")" "$EXTERNAL_PATHS_FILE" >/dev/null 2>&1; then
+            jq_inplace "del(.$key)" "$EXTERNAL_PATHS_FILE"
+            write_info "Cleaned '$key' from .external-paths.json"
+        fi
+    done
+fi
+
+if [[ $legacy_cleaned -gt 0 ]]; then
+    write_success "Removed $legacy_cleaned legacy skill junction(s)"
+    write_info "Install community skills via plugins instead:"
+    echo -e "    ${CYAN}copilot plugin install <name>@awesome-copilot${NC}"
+    echo -e "    ${CYAN}copilot plugin marketplace add anthropics/skills${NC}"
+    echo -e "    ${CYAN}copilot plugin install document-skills@anthropic-agent-skills${NC}"
+    SUMMARY_PLUGIN_JUNCTIONS_CLEANED=$legacy_cleaned
+else
+    write_info "No legacy junctions to clean up"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1359,6 +1371,12 @@ if $SUMMARY_MCP_GENERATED; then
     if [[ ${#SUMMARY_MCP_ENV_MISSING[@]} -gt 0 ]]; then
         echo -e "    ${YELLOW}Env missing:    $(IFS=', '; echo "${SUMMARY_MCP_ENV_MISSING[*]}")${NC}"
     fi
+fi
+
+if [[ $SUMMARY_PLUGIN_JUNCTIONS_CLEANED -gt 0 ]]; then
+    echo ""
+    echo -e "  ${CYAN}Legacy cleanup:${NC}"
+    echo -e "    ${YELLOW}Junctions removed: $SUMMARY_PLUGIN_JUNCTIONS_CLEANED (now use plugins)${NC}"
 fi
 
 echo ""

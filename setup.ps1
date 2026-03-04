@@ -1,18 +1,21 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Setup script for Copilot CLI configuration, skills, MCP servers, and external repos.
+    Setup script for Copilot CLI configuration, skills, MCP servers, and plugins.
 
 .DESCRIPTION
     Backs up existing ~/.copilot/ config, symlinks config files, patches config.json
-    with portable settings, symlinks local custom skills, clones/pulls external skill
-    repos, links their skills into ~/.copilot/skills/, builds local MCP servers,
-    validates env vars, and generates ~/.copilot/mcp-config.json.
+    with portable settings, symlinks local custom skills, clones/pulls optional skill
+    repos (SPT-IQ), builds local MCP servers, validates env vars, and generates
+    ~/.copilot/mcp-config.json.
+
+    Community skills from awesome-copilot and anthropic are installed via Copilot CLI
+    plugins, not managed by this script. See README.md for plugin install commands.
 
     Idempotent — safe to re-run at any time.
 
 .PARAMETER WorkSkills
-    Include optional work-specific skill repos and MCP servers (msx-mcp, SPT-IQ).
+    Include optional work-specific skill repos and MCP servers (SPT-IQ).
 
 .PARAMETER PowerBI
     Include Power BI Remote MCP server.
@@ -66,48 +69,12 @@ $portableAllowedKeys = @(
 )
 
 # External skill repositories
-$externalRepos = @(
-    @{
-        Name        = "anthropic"
-        DisplayName = "anthropics/skills"
-        Repo        = "https://github.com/anthropics/skills.git"
-        CloneDir    = "anthropic-skills"
-        SkillsSubdir = "skills"
-        Category    = "base"
-        Exclude     = @(
-            "skill-creator", "mcp-builder", "algorithmic-art", "brand-guidelines",
-            "canvas-design", "doc-coauthoring", "internal-comms", "slack-gif-creator"
-        )
-    }
-    @{
-        Name        = "github"
-        DisplayName = "ericchansen/awesome-copilot"
-        Repo        = "https://github.com/ericchansen/awesome-copilot.git"
-        CloneDir    = "awesome-copilot"
-        SkillsSubdir = "skills"
-        Category    = "base"
-        Exclude     = @(
-            "git-commit", "make-repo-contribution", "copilot-cli-quickstart",
-            "microsoft-docs", "microsoft-skill-creator",
-            "agentic-eval", "finnish-humanizer", "legacy-circuit-mockups",
-            "nano-banana-pro-openrouter", "penpot-uiux-design", "scoutqa-test",
-            "snowflake-semanticview", "pdftk-server", "sponsor-finder",
-            "plantuml-ascii", "prd", "meeting-minutes", "webapp-testing"
-        )
-    }
-)
+# (Community skills from awesome-copilot and anthropic are now installed via
+#  Copilot CLI plugins — see README.md. Only work-specific repos remain here.)
+$externalRepos = @()
 
 # Optional work-specific repos (included via -WorkSkills flag or interactive prompt)
 $optionalRepos = @(
-    @{
-        Name        = "msx-mcp"
-        DisplayName = "mcaps-microsoft/MSX-MCP"
-        Repo        = "https://github.com/mcaps-microsoft/MSX-MCP.git"
-        CloneDir    = "msx-mcp"
-        SkillsSubdir = "skills"
-        Category    = "work"
-        Exclude     = @()
-    }
     @{
         Name        = "spt-iq"
         DisplayName = "mcaps-microsoft/SPT-IQ"
@@ -124,7 +91,7 @@ $includeWorkSkills = $false
 if ($WorkSkills) {
     $includeWorkSkills = $true
 } elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include work-specific skills (msx-mcp, SPT-IQ)? [y/N]"
+    $answer = Read-Host "  Include work-specific skills (SPT-IQ)? [y/N]"
     if ($answer -eq "y" -or $answer -eq "Y") {
         $includeWorkSkills = $true
     }
@@ -178,6 +145,7 @@ $script:summary = [ordered]@{
     McpServersFailed  = @()
     McpEnvMissing     = @()
     McpConfigGenerated = $false
+    PluginJunctionsCleaned = 0
 }
 
 # =============================================================================
@@ -863,6 +831,62 @@ if ($localSkills.Count -eq 0) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 7b: Clean up old anthropic/awesome-copilot skill junctions
+# ─────────────────────────────────────────────────────────────────────────────
+# These repos are now installed via Copilot CLI plugins, not manual cloning.
+# Remove any leftover junctions pointing into their old clone directories.
+Write-Step "Step 7b: Clean up legacy skill junctions (anthropic, awesome-copilot)"
+
+$legacyPatterns = @("anthropic-skills", "awesome-copilot", "msx-mcp")
+$legacyCleaned = 0
+
+Get-ChildItem -Path $copilotSkillsHome -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    if ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        $target = (Get-Item $_.FullName -Force).Target
+        if ($target -is [System.Collections.IEnumerable] -and $target -isnot [string]) { $target = $target[0] }
+        if ($target) {
+            foreach ($pattern in $legacyPatterns) {
+                if ($target -match [regex]::Escape($pattern)) {
+                    Write-Warn "Removing legacy junction: $($_.Name) → $target"
+                    cmd /c rmdir "$($_.FullName)" 2>&1 | Out-Null
+                    $legacyCleaned++
+                    break
+                }
+            }
+        }
+    }
+}
+
+# Clean legacy entries from .external-paths.json
+$externalPathsFile = Join-Path $repoRoot ".external-paths.json"
+if (Test-Path $externalPathsFile) {
+    $externalPaths = Get-Content $externalPathsFile -Raw | ConvertFrom-Json
+    $legacyKeys = @("anthropic", "github", "msx-mcp")
+    $cleaned = $false
+    foreach ($key in $legacyKeys) {
+        if ($externalPaths.PSObject.Properties[$key]) {
+            $externalPaths.PSObject.Properties.Remove($key)
+            $cleaned = $true
+        }
+    }
+    if ($cleaned) {
+        $externalPaths | ConvertTo-Json -Depth 5 | Set-Content $externalPathsFile -Encoding UTF8
+        Write-Info "Cleaned legacy entries from .external-paths.json"
+    }
+}
+
+if ($legacyCleaned -gt 0) {
+    Write-Success "Removed $legacyCleaned legacy skill junction(s)"
+    Write-Info "Install community skills via plugins instead:"
+    Write-Color "    copilot plugin install <name>@awesome-copilot" "Cyan"
+    Write-Color "    copilot plugin marketplace add anthropics/skills" "Cyan"
+    Write-Color "    copilot plugin install document-skills@anthropic-agent-skills" "Cyan"
+    $script:summary.PluginJunctionsCleaned = $legacyCleaned
+} else {
+    Write-Info "No legacy junctions to clean up"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 8: Clone/pull external skill repos and symlink
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Step "Step 8: External skill repositories"
@@ -1440,6 +1464,12 @@ if ($script:summary.McpConfigGenerated) {
     if ($script:summary.McpEnvMissing.Count -gt 0) {
         Write-Color "    Env missing:    $($script:summary.McpEnvMissing -join ', ')" "Yellow"
     }
+}
+
+if ($script:summary.PluginJunctionsCleaned -gt 0) {
+    Write-Host ""
+    Write-Color "  Legacy cleanup:" "Cyan"
+    Write-Color "    Junctions removed: $($script:summary.PluginJunctionsCleaned) (now use plugins)" "Yellow"
 }
 
 Write-Host ""
