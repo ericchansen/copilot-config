@@ -98,15 +98,6 @@ REPOS_EOF
 OPTIONAL_REPOS_JSON=$(cat <<'REPOS_EOF'
 [
   {
-    "name": "msx-mcp",
-    "displayName": "mcaps-microsoft/MSX-MCP",
-    "repo": "https://github.com/mcaps-microsoft/MSX-MCP.git",
-    "cloneDir": "msx-mcp",
-    "skillsSubdir": "skills",
-    "category": "work",
-    "exclude": []
-  },
-  {
     "name": "spt-iq",
     "displayName": "mcaps-microsoft/SPT-IQ",
     "repo": "https://github.com/mcaps-microsoft/SPT-IQ.git",
@@ -572,7 +563,7 @@ INCLUDE_WORK_SKILLS=false
 if $WORK_SKILLS; then
     INCLUDE_WORK_SKILLS=true
 elif ! $NON_INTERACTIVE; then
-    read -rp "  Include work-specific skills (msx-mcp, SPT-IQ)? [y/N] " answer
+    read -rp "  Include work-specific skills (SPT-IQ)? [y/N] " answer
     [[ "${answer,,}" == "y" ]] && INCLUDE_WORK_SKILLS=true
 fi
 

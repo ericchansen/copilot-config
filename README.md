@@ -46,7 +46,7 @@ The setup script will:
 - Symlink instructions and skills into `~/.copilot/`
 - Patch your `config.json` with portable settings (without touching auth)
 - Clone external skill repos ([Anthropic](https://github.com/anthropics/skills), [GitHub](https://github.com/ericchansen/awesome-copilot)) and link curated skills
-- Optionally clone work-specific repos (msx-mcp, SPT-IQ) when requested
+- Optionally clone work-specific repos (SPT-IQ) when requested
 - Build local MCP servers (clone, install deps, compile)
 - Validate required environment variables (prompt if missing)
 - Generate `~/.copilot/mcp-config.json` with correct OS paths
@@ -138,7 +138,6 @@ MCP server configuration is defined in `mcp-servers.json` and generated into `~/
 
 | Server | Flag | Type | Purpose |
 |--------|------|------|---------|
-| msx-mcp | `-WorkSkills` | local (node) | MSX deal/account tools |
 | powerbi-remote | `-PowerBI` | http | Power BI Fabric API |
 
 ## Updating
@@ -183,8 +182,10 @@ Setup links curated skills from:
 - **[ericchansen/awesome-copilot](https://github.com/ericchansen/awesome-copilot)** — 27 skills covering Azure, GitHub CLI, Chrome DevTools, web forms, diagrams, and more
 
 ### Optional Work Skills (`-WorkSkills`)
-- **[mcaps-microsoft/MSX-MCP](https://github.com/mcaps-microsoft/MSX-MCP)**
 - **[mcaps-microsoft/SPT-IQ](https://github.com/mcaps-microsoft/SPT-IQ)**
+
+### Plugins (installed separately)
+- **[mcaps-microsoft/MSX-MCP](https://github.com/mcaps-microsoft/MSX-MCP)** — install with `copilot plugin install mcaps-microsoft/MSX-MCP` (MCP server, skills, and `@msx` agent auto-configured)
 
 ## About Agent Skills
 

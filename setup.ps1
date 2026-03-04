@@ -12,7 +12,7 @@
     Idempotent — safe to re-run at any time.
 
 .PARAMETER WorkSkills
-    Include optional work-specific skill repos and MCP servers (msx-mcp, SPT-IQ).
+    Include optional work-specific skill repos and MCP servers (SPT-IQ).
 
 .PARAMETER PowerBI
     Include Power BI Remote MCP server.
@@ -100,15 +100,6 @@ $externalRepos = @(
 # Optional work-specific repos (included via -WorkSkills flag or interactive prompt)
 $optionalRepos = @(
     @{
-        Name        = "msx-mcp"
-        DisplayName = "mcaps-microsoft/MSX-MCP"
-        Repo        = "https://github.com/mcaps-microsoft/MSX-MCP.git"
-        CloneDir    = "msx-mcp"
-        SkillsSubdir = "skills"
-        Category    = "work"
-        Exclude     = @()
-    }
-    @{
         Name        = "spt-iq"
         DisplayName = "mcaps-microsoft/SPT-IQ"
         Repo        = "https://github.com/mcaps-microsoft/SPT-IQ.git"
@@ -124,7 +115,7 @@ $includeWorkSkills = $false
 if ($WorkSkills) {
     $includeWorkSkills = $true
 } elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include work-specific skills (msx-mcp, SPT-IQ)? [y/N]"
+    $answer = Read-Host "  Include work-specific skills (SPT-IQ)? [y/N]"
     if ($answer -eq "y" -or $answer -eq "Y") {
         $includeWorkSkills = $true
     }

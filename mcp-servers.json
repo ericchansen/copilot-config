@@ -42,18 +42,6 @@
       "tools": ["*"]
     },
     {
-      "name": "msx-mcp",
-      "category": "work",
-      "type": "local",
-      "command": "node",
-      "entryPoint": "dist/index.js",
-      "cloneDir": "msx-mcp",
-      "repo": "https://github.com/mcaps-microsoft/MSX-MCP.git",
-      "build": ["npm install", "npm run build"],
-      "tools": ["*"],
-      "defaultPaths": ["~/repos/msx-mcp"]
-    },
-    {
       "name": "powerbi-remote",
       "category": "powerbi",
       "type": "http",
