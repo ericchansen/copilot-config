@@ -25,17 +25,17 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
    **PowerShell (Windows):**
    ```powershell
    ./setup.ps1                                           # Interactive — prompts for options
-   ./setup.ps1 -PowerBI                                  # Include Power BI
+   ./setup.ps1 -Work                                     # Include work tools (MSX-MCP, SPT-IQ, Power BI)
    ./setup.ps1 -NonInteractive                           # No prompts, base only (safe for cron)
-   ./setup.ps1 -NonInteractive -PowerBI                  # No prompts, everything enabled
+   ./setup.ps1 -NonInteractive -Work                     # No prompts, everything enabled
    ```
 
    **Bash (macOS/Linux):**
    ```bash
    ./setup.sh                                            # Interactive — prompts for options
-   ./setup.sh --power-bi                                 # Include Power BI
+   ./setup.sh --work                                     # Include work tools (MSX-MCP, SPT-IQ, Power BI)
    ./setup.sh --non-interactive                          # No prompts, base only (safe for cron)
-   ./setup.sh --non-interactive --power-bi               # No prompts, everything enabled
+   ./setup.sh --non-interactive --work                   # No prompts, everything enabled
    ```
 
    > **Note:** The Bash scripts require `jq` for JSON processing and Bash 4+. On macOS, install both with `brew install bash jq`.
@@ -137,7 +137,7 @@ MCP server configuration is defined in `mcp-servers.json` and generated into `~/
 
 | Server | Flag | Type | Purpose |
 |--------|------|------|---------|
-| powerbi-remote | `-PowerBI` | http | Power BI Fabric API |
+| powerbi-remote | `-Work` | http | Power BI Fabric API |
 
 ## Updating
 

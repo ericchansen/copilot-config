@@ -14,8 +14,9 @@
 
     Idempotent — safe to re-run at any time.
 
-.PARAMETER PowerBI
-    Include Power BI Remote MCP server.
+.PARAMETER Work
+    Include work tools: installs work plugins (MSX-MCP, SPT-IQ) and enables
+    the Power BI Remote MCP server.
 
 .PARAMETER NonInteractive
     Run without prompts (safe for cron jobs). Defaults: skip replacing real dirs
@@ -23,11 +24,11 @@
 
 .EXAMPLE
     ./setup.ps1
-    ./setup.ps1 -PowerBI
+    ./setup.ps1 -Work
     ./setup.ps1 -NonInteractive
 #>
 param(
-    [switch]$PowerBI,
+    [switch]$Work,
     [switch]$CleanOrphans,
     [switch]$NonInteractive
 )
@@ -69,14 +70,21 @@ $portableAllowedKeys = @(
 # installed via Copilot CLI plugins — see README.md. No external repos are cloned.
 $externalRepos = @()
 
-# Resolve whether to include Power BI
-$includePowerBI = $false
-if ($PowerBI) {
-    $includePowerBI = $true
+# Plugins to install via `copilot plugin install`
+# Work = $true means the plugin is only installed when -Work is specified.
+$plugins = @(
+    @{ Name = "msx-mcp";  Source = "mcaps-microsoft/MSX-MCP"; Work = $true },
+    @{ Name = "spt-iq";   Source = "mcaps-microsoft/SPT-IQ";  Work = $true }
+)
+
+# Resolve whether to include work tools (plugins + Power BI MCP server)
+$includeWork = $false
+if ($Work) {
+    $includeWork = $true
 } elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include Power BI Remote MCP server? [y/N]"
+    $answer = Read-Host "  Include work tools? (MSX-MCP, SPT-IQ plugins + Power BI MCP) [y/N]"
     if ($answer -eq "y" -or $answer -eq "Y") {
-        $includePowerBI = $true
+        $includeWork = $true
     }
 }
 
@@ -114,6 +122,9 @@ $script:summary = [ordered]@{
     McpEnvMissing     = @()
     McpConfigGenerated = $false
     PluginJunctionsCleaned = 0
+    PluginsInstalled  = @()
+    PluginsSkipped    = @()
+    PluginsFailed     = @()
 }
 
 # =============================================================================
@@ -855,6 +866,49 @@ if ($legacyCleaned -gt 0) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 7c: Install Copilot CLI plugins
+# ─────────────────────────────────────────────────────────────────────────────
+Write-Step "Step 7c: Install plugins"
+
+# Determine which plugins to install based on flags
+$pluginsToInstall = $plugins | Where-Object { -not $_.Work -or $includeWork }
+
+if ($pluginsToInstall.Count -eq 0) {
+    Write-Info "No plugins to install (use -Work to include work plugins)"
+} else {
+    # Get currently installed plugins
+    $installedRaw = ""
+    try {
+        $installedRaw = (& copilot plugin list 2>&1) | Out-String
+    } catch {
+        Write-Warn "Could not list installed plugins: $_"
+    }
+
+    foreach ($plugin in $pluginsToInstall) {
+        if ($installedRaw -match [regex]::Escape($plugin.Name)) {
+            Write-Info "$($plugin.Name) already installed"
+            $script:summary.PluginsSkipped += $plugin.Name
+        } else {
+            Write-Info "Installing $($plugin.Name) from $($plugin.Source)..."
+            try {
+                $output = & copilot plugin install $plugin.Source 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "$($plugin.Name) installed"
+                    $script:summary.PluginsInstalled += $plugin.Name
+                } else {
+                    Write-Warn "$($plugin.Name) install returned exit code $LASTEXITCODE"
+                    Write-Warn "  $($output | Out-String)"
+                    $script:summary.PluginsFailed += $plugin.Name
+                }
+            } catch {
+                Write-Err "Failed to install $($plugin.Name): $_"
+                $script:summary.PluginsFailed += $plugin.Name
+            }
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 8: Clone/pull external skill repos and symlink
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Step "Step 8: External skill repositories"
@@ -1063,7 +1117,7 @@ $mcpServers = (Get-Content $mcpServersJsonPath -Raw | ConvertFrom-Json).servers
 
 # Determine enabled categories
 $enabledCategories = @("base")
-if ($includePowerBI)    { $enabledCategories += "powerbi" }
+if ($includeWork)    { $enabledCategories += "powerbi" }
 
 $enabledServers = $mcpServers | Where-Object { $enabledCategories -contains $_.category }
 
@@ -1437,6 +1491,17 @@ if ($script:summary.PluginJunctionsCleaned -gt 0) {
     Write-Host ""
     Write-Color "  Legacy cleanup:" "Cyan"
     Write-Color "    Junctions removed: $($script:summary.PluginJunctionsCleaned) (now use plugins)" "Yellow"
+}
+
+$pInstalled = $script:summary.PluginsInstalled.Count
+$pSkipped   = $script:summary.PluginsSkipped.Count
+$pFailed    = $script:summary.PluginsFailed.Count
+if ($pInstalled -gt 0 -or $pSkipped -gt 0 -or $pFailed -gt 0) {
+    Write-Host ""
+    Write-Color "  Plugins:" "Cyan"
+    if ($pInstalled -gt 0) { Write-Color "    Installed:      $($script:summary.PluginsInstalled -join ', ')" "Green" }
+    if ($pSkipped   -gt 0) { Write-Color "    Already there:  $($script:summary.PluginsSkipped -join ', ')" "Cyan" }
+    if ($pFailed    -gt 0) { Write-Color "    Failed:         $($script:summary.PluginsFailed -join ', ')" "Red" }
 }
 
 Write-Host ""
