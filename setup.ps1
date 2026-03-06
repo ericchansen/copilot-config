@@ -125,6 +125,9 @@ $script:summary = [ordered]@{
     PluginsInstalled  = @()
     PluginsSkipped    = @()
     PluginsFailed     = @()
+    OptionalInstalled = @()
+    OptionalSkipped   = @()
+    OptionalFailed    = @()
 }
 
 # =============================================================================
@@ -1408,6 +1411,122 @@ if ($totalCleaned -eq 0) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 12b: Optional Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+if (-not $NonInteractive) {
+    Write-Host ""
+    Write-Color "═══════════════════════════════════" "Cyan"
+    Write-Color "  Optional Dependencies" "Cyan"
+    Write-Color "═══════════════════════════════════" "Cyan"
+    Write-Host ""
+    Write-Host "These tools enhance specific skills. You can install them now"
+    Write-Host "or later. The agent works without them but some skills will"
+    Write-Host "be limited."
+    Write-Host ""
+
+    # --- MarkItDown (pip) ---
+    if (Get-Command markitdown -ErrorAction SilentlyContinue) {
+        Write-Success "MarkItDown already installed"
+        $script:summary.OptionalSkipped += "markitdown"
+    } else {
+        $answer = Read-Host "Install MarkItDown? (converts PDF/Word/Excel to markdown) [Y/n]"
+        if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
+            try {
+                Write-Info "Installing markitdown[all] via pip..."
+                $pipOutput = pip install 'markitdown[all]' 2>&1 | Out-String
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "MarkItDown installed"
+                    $script:summary.OptionalInstalled += "markitdown"
+                } else {
+                    Write-Err "MarkItDown install failed"
+                    $script:summary.OptionalFailed += "markitdown"
+                }
+            } catch {
+                Write-Err "MarkItDown install failed: $_"
+                $script:summary.OptionalFailed += "markitdown"
+            }
+        } else {
+            Write-Info "Skipped MarkItDown"
+            $script:summary.OptionalSkipped += "markitdown"
+        }
+    }
+
+    # --- QMD (npm, requires Node.js 22+) ---
+    if (Get-Command qmd -ErrorAction SilentlyContinue) {
+        Write-Success "QMD already installed"
+        $script:summary.OptionalSkipped += "qmd"
+    } else {
+        $nodeOk = $false
+        if (Get-Command node -ErrorAction SilentlyContinue) {
+            $nodeVer = (node --version 2>&1) -replace '^v', ''
+            $nodeMajor = [int]($nodeVer -split '\.')[0]
+            if ($nodeMajor -ge 22) {
+                $nodeOk = $true
+            }
+        }
+        if (-not $nodeOk) {
+            Write-Warn "QMD requires Node.js 22+ (current: $(if (Get-Command node -ErrorAction SilentlyContinue) { node --version } else { 'not found' }))"
+            Write-Info "Skipped QMD"
+            $script:summary.OptionalSkipped += "qmd"
+        } else {
+            $answer = Read-Host "Install QMD? (local hybrid search for memory, requires Node.js 22+) [Y/n]"
+            if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
+                try {
+                    Write-Info "Installing @tobilu/qmd via npm..."
+                    $npmOutput = npm install -g "@tobilu/qmd" 2>&1 | Out-String
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Success "QMD installed"
+                        $script:summary.OptionalInstalled += "qmd"
+                    } else {
+                        Write-Err "QMD install failed"
+                        $script:summary.OptionalFailed += "qmd"
+                    }
+                } catch {
+                    Write-Err "QMD install failed: $_"
+                    $script:summary.OptionalFailed += "qmd"
+                }
+            } else {
+                Write-Info "Skipped QMD"
+                $script:summary.OptionalSkipped += "qmd"
+            }
+        }
+    }
+
+    # --- Playwright Edge driver ---
+    $edgeInstalled = $false
+    $msPlaywrightDir = Join-Path $env:LOCALAPPDATA "ms-playwright"
+    if (Test-Path $msPlaywrightDir) {
+        $edgeDirs = Get-ChildItem -Path $msPlaywrightDir -Directory -Filter "msedge-*" -ErrorAction SilentlyContinue
+        if ($edgeDirs.Count -gt 0) { $edgeInstalled = $true }
+    }
+    if ($edgeInstalled) {
+        Write-Success "Playwright Edge driver already installed"
+        $script:summary.OptionalSkipped += "playwright-edge"
+    } else {
+        $answer = Read-Host "Install Playwright Edge driver? (needed for browser automation) [Y/n]"
+        if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
+            try {
+                Write-Info "Installing Playwright Edge driver..."
+                $pwOutput = npx playwright install msedge 2>&1 | Out-String
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "Playwright Edge driver installed"
+                    $script:summary.OptionalInstalled += "playwright-edge"
+                } else {
+                    Write-Err "Playwright Edge install failed"
+                    $script:summary.OptionalFailed += "playwright-edge"
+                }
+            } catch {
+                Write-Err "Playwright Edge install failed: $_"
+                $script:summary.OptionalFailed += "playwright-edge"
+            }
+        } else {
+            Write-Info "Skipped Playwright Edge driver"
+            $script:summary.OptionalSkipped += "playwright-edge"
+        }
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 13: Summary
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Host ""
@@ -1502,6 +1621,17 @@ if ($pInstalled -gt 0 -or $pSkipped -gt 0 -or $pFailed -gt 0) {
     if ($pInstalled -gt 0) { Write-Color "    Installed:      $($script:summary.PluginsInstalled -join ', ')" "Green" }
     if ($pSkipped   -gt 0) { Write-Color "    Already there:  $($script:summary.PluginsSkipped -join ', ')" "Cyan" }
     if ($pFailed    -gt 0) { Write-Color "    Failed:         $($script:summary.PluginsFailed -join ', ')" "Red" }
+}
+
+$oInstalled = $script:summary.OptionalInstalled.Count
+$oSkipped   = $script:summary.OptionalSkipped.Count
+$oFailed    = $script:summary.OptionalFailed.Count
+if ($oInstalled -gt 0 -or $oSkipped -gt 0 -or $oFailed -gt 0) {
+    Write-Host ""
+    Write-Color "  Optional tools:" "Cyan"
+    if ($oInstalled -gt 0) { Write-Color "    Installed:      $($script:summary.OptionalInstalled -join ', ')" "Green" }
+    if ($oSkipped   -gt 0) { Write-Color "    Skipped:        $($script:summary.OptionalSkipped -join ', ')" "Cyan" }
+    if ($oFailed    -gt 0) { Write-Color "    Failed:         $($script:summary.OptionalFailed -join ', ')" "Red" }
 }
 
 Write-Host ""

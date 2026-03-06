@@ -223,6 +223,18 @@ copilot plugin remove <name> # Uninstall a plugin
 
 Agent Skills are an [open standard](https://github.com/agentskills/agentskills) maintained by Anthropic for giving agents new capabilities. Skills are folders containing a `SKILL.md` with YAML frontmatter and optional bundled resources (scripts, references, assets).
 
+## Optional Dependencies
+
+The setup scripts offer to install these optional tools during setup. They enhance specific skills but aren't required — the agent works without them.
+
+| Tool | Install Command | Purpose |
+|------|----------------|---------|
+| [MarkItDown](https://github.com/microsoft/markitdown) | `pip install 'markitdown[all]'` | Converts PDF/Word/Excel/HTML to markdown |
+| [QMD](https://github.com/tobi/qmd) | `npm install -g @tobilu/qmd` | Local hybrid search for semantic memory (Node.js 22+) |
+| Playwright Edge | `npx playwright install msedge` | Edge browser driver for browser automation |
+
+To install later, run the commands above manually or re-run the setup script.
+
 ## License
 
 MIT

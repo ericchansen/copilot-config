@@ -120,6 +120,9 @@ SUMMARY_PLUGIN_JUNCTIONS_CLEANED=0
 declare -a SUMMARY_PLUGINS_INSTALLED=()
 declare -a SUMMARY_PLUGINS_SKIPPED=()
 declare -a SUMMARY_PLUGINS_FAILED=()
+declare -a SUMMARY_OPTIONAL_INSTALLED=()
+declare -a SUMMARY_OPTIONAL_SKIPPED=()
+declare -a SUMMARY_OPTIONAL_FAILED=()
 
 # =============================================================================
 # Helper Functions
@@ -1317,6 +1320,105 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Step 12b: Optional Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+if ! $NON_INTERACTIVE; then
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════${NC}"
+    echo -e "  ${CYAN}Optional Dependencies${NC}"
+    echo -e "${CYAN}═══════════════════════════════════${NC}"
+    echo ""
+    echo "These tools enhance specific skills. You can install them now"
+    echo "or later. The agent works without them but some skills will"
+    echo "be limited."
+    echo ""
+
+    # --- MarkItDown (pip) ---
+    if command -v markitdown &>/dev/null; then
+        write_success "MarkItDown already installed"
+        SUMMARY_OPTIONAL_SKIPPED+=("markitdown")
+    else
+        read -rp "Install MarkItDown? (converts PDF/Word/Excel to markdown) [Y/n] " answer
+        if [[ -z "$answer" || "$answer" == "y" || "$answer" == "Y" ]]; then
+            write_info "Installing markitdown[all] via pip..."
+            if pip install 'markitdown[all]' 2>&1; then
+                write_success "MarkItDown installed"
+                SUMMARY_OPTIONAL_INSTALLED+=("markitdown")
+            else
+                write_err "MarkItDown install failed"
+                SUMMARY_OPTIONAL_FAILED+=("markitdown")
+            fi
+        else
+            write_info "Skipped MarkItDown"
+            SUMMARY_OPTIONAL_SKIPPED+=("markitdown")
+        fi
+    fi
+
+    # --- QMD (npm, requires Node.js 22+) ---
+    if command -v qmd &>/dev/null; then
+        write_success "QMD already installed"
+        SUMMARY_OPTIONAL_SKIPPED+=("qmd")
+    else
+        node_ok=false
+        if command -v node &>/dev/null; then
+            node_ver=$(node --version 2>/dev/null | sed 's/^v//')
+            node_major=$(echo "$node_ver" | cut -d. -f1)
+            if [[ "$node_major" -ge 22 ]]; then
+                node_ok=true
+            fi
+        fi
+        if ! $node_ok; then
+            cur_node=$(command -v node &>/dev/null && node --version 2>/dev/null || echo "not found")
+            write_warn "QMD requires Node.js 22+ (current: $cur_node)"
+            write_info "Skipped QMD"
+            SUMMARY_OPTIONAL_SKIPPED+=("qmd")
+        else
+            read -rp "Install QMD? (local hybrid search for memory, requires Node.js 22+) [Y/n] " answer
+            if [[ -z "$answer" || "$answer" == "y" || "$answer" == "Y" ]]; then
+                write_info "Installing @tobilu/qmd via npm..."
+                if npm install -g @tobilu/qmd 2>&1; then
+                    write_success "QMD installed"
+                    SUMMARY_OPTIONAL_INSTALLED+=("qmd")
+                else
+                    write_err "QMD install failed"
+                    SUMMARY_OPTIONAL_FAILED+=("qmd")
+                fi
+            else
+                write_info "Skipped QMD"
+                SUMMARY_OPTIONAL_SKIPPED+=("qmd")
+            fi
+        fi
+    fi
+
+    # --- Playwright Edge driver ---
+    edge_installed=false
+    if [[ -d "$HOME/.cache/ms-playwright" ]]; then
+        if ls "$HOME/.cache/ms-playwright"/msedge-* &>/dev/null 2>&1; then
+            edge_installed=true
+        fi
+    fi
+    if $edge_installed; then
+        write_success "Playwright Edge driver already installed"
+        SUMMARY_OPTIONAL_SKIPPED+=("playwright-edge")
+    else
+        read -rp "Install Playwright Edge driver? (needed for browser automation) [Y/n] " answer
+        if [[ -z "$answer" || "$answer" == "y" || "$answer" == "Y" ]]; then
+            write_info "Installing Playwright Edge driver..."
+            if npx playwright install msedge 2>&1; then
+                write_success "Playwright Edge driver installed"
+                SUMMARY_OPTIONAL_INSTALLED+=("playwright-edge")
+            else
+                write_err "Playwright Edge install failed"
+                SUMMARY_OPTIONAL_FAILED+=("playwright-edge")
+            fi
+        else
+            write_info "Skipped Playwright Edge driver"
+            SUMMARY_OPTIONAL_SKIPPED+=("playwright-edge")
+        fi
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Step 13: Summary
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
@@ -1408,6 +1510,14 @@ if [[ ${#SUMMARY_PLUGINS_INSTALLED[@]} -gt 0 || ${#SUMMARY_PLUGINS_SKIPPED[@]} -
     [[ ${#SUMMARY_PLUGINS_INSTALLED[@]} -gt 0 ]] && echo -e "    ${GREEN}Installed:      ${SUMMARY_PLUGINS_INSTALLED[*]}${NC}"
     [[ ${#SUMMARY_PLUGINS_SKIPPED[@]}  -gt 0 ]] && echo -e "    ${CYAN}Already there:  ${SUMMARY_PLUGINS_SKIPPED[*]}${NC}"
     [[ ${#SUMMARY_PLUGINS_FAILED[@]}   -gt 0 ]] && echo -e "    ${RED}Failed:         ${SUMMARY_PLUGINS_FAILED[*]}${NC}"
+fi
+
+if [[ ${#SUMMARY_OPTIONAL_INSTALLED[@]} -gt 0 || ${#SUMMARY_OPTIONAL_SKIPPED[@]} -gt 0 || ${#SUMMARY_OPTIONAL_FAILED[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "  ${CYAN}Optional tools:${NC}"
+    [[ ${#SUMMARY_OPTIONAL_INSTALLED[@]} -gt 0 ]] && echo -e "    ${GREEN}Installed:      ${SUMMARY_OPTIONAL_INSTALLED[*]}${NC}"
+    [[ ${#SUMMARY_OPTIONAL_SKIPPED[@]}  -gt 0 ]] && echo -e "    ${CYAN}Skipped:        ${SUMMARY_OPTIONAL_SKIPPED[*]}${NC}"
+    [[ ${#SUMMARY_OPTIONAL_FAILED[@]}   -gt 0 ]] && echo -e "    ${RED}Failed:         ${SUMMARY_OPTIONAL_FAILED[*]}${NC}"
 fi
 
 echo ""
