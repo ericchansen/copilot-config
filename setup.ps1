@@ -1433,7 +1433,7 @@ if (-not $NonInteractive) {
         if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
             try {
                 Write-Info "Installing markitdown[all] via pip..."
-                $pipOutput = pip install 'markitdown[all]' 2>&1 | Out-String
+                pip install 'markitdown[all]'
                 if ($LASTEXITCODE -eq 0) {
                     Write-Success "MarkItDown installed"
                     $script:summary.OptionalInstalled += "markitdown"
@@ -1473,7 +1473,7 @@ if (-not $NonInteractive) {
             if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
                 try {
                     Write-Info "Installing @tobilu/qmd via npm..."
-                    $npmOutput = npm install -g "@tobilu/qmd" 2>&1 | Out-String
+                    npm install -g "@tobilu/qmd"
                     if ($LASTEXITCODE -eq 0) {
                         Write-Success "QMD installed"
                         $script:summary.OptionalInstalled += "qmd"
@@ -1507,7 +1507,7 @@ if (-not $NonInteractive) {
         if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
             try {
                 Write-Info "Installing Playwright Edge driver..."
-                $pwOutput = npx playwright install msedge 2>&1 | Out-String
+                npx playwright install msedge
                 if ($LASTEXITCODE -eq 0) {
                     Write-Success "Playwright Edge driver installed"
                     $script:summary.OptionalInstalled += "playwright-edge"
