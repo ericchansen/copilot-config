@@ -615,9 +615,9 @@ if (Test-Path $copilotHome) {
     $script:summary.BackedUp = $true
 
     # Clean up old backups — keep only the 5 most recent
-    $oldBackups = Get-ChildItem -Path $env:USERPROFILE -Directory -Filter ".copilot-backup-*" |
+    $oldBackups = @(Get-ChildItem -Path $env:USERPROFILE -Directory -Filter ".copilot-backup-*" |
         Sort-Object Name -Descending |
-        Select-Object -Skip 5
+        Select-Object -Skip 5)
     if ($oldBackups.Count -gt 0) {
         $oldBackups | ForEach-Object { Remove-Item $_.FullName -Recurse -Force }
         Write-Info "Cleaned up $($oldBackups.Count) old backup(s)"

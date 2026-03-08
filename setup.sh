@@ -635,7 +635,7 @@ if [[ -d "$COPILOT_HOME" ]]; then
     old_backups=()
     while IFS= read -r d; do
         old_backups+=("$d")
-    done < <(ls -dt "$HOME"/.copilot-backup-* 2>/dev/null | tail -n +6)
+    done < <(find "$HOME" -maxdepth 1 -type d -name '.copilot-backup-*' -print 2>/dev/null | sort -r | tail -n +6)
     if [[ ${#old_backups[@]} -gt 0 ]]; then
         for ob in "${old_backups[@]}"; do
             rm -rf "$ob"
