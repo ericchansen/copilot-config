@@ -201,22 +201,23 @@ Or, to make it permanent, you can set it in the config. Inside a Copilot session
 
 ## Step 7: Set Your Preferred AI Model
 
-Copilot CLI can use different AI models. For the best results, I recommend using **Claude Opus 4.5**.
+Copilot CLI can use different AI models. For the best results, I recommend using **Claude Opus 4.6**.
 
 ### What's Claude Opus?
 
 Claude is an AI model made by Anthropic. The "Opus" version is their most capable model—it's excellent at complex reasoning, coding, and nuanced tasks. While it may be slightly slower than smaller models, the quality difference is noticeable.
 
-> **Microsoft FTEs:** You get **unlimited usage** of all models, including Claude Opus 4.5. Take advantage of this—use the best model available!
+> **Microsoft FTEs:** You get **unlimited usage** of all models, including Claude Opus 4.6. Take advantage of this—use the best model available!
 
 ### Available Models
 
 As of this writing, the available models include:
-- `claude-opus-4.5` - Most capable (recommended)
+- `claude-opus-4.6` - Most capable (recommended)
+- `claude-sonnet-4.6` - Fast and highly capable
 - `claude-sonnet-4.5` - Good balance of speed and capability
-- `claude-sonnet-4` - Fast and capable
-- `gpt-5.2-codex` - OpenAI's coding model
-- `gpt-5.1`, `gpt-5` - OpenAI models
+- `gpt-5.4` - OpenAI's latest model
+- `gpt-5.3-codex` - OpenAI's coding model
+- `gpt-5.2-codex` - OpenAI's previous coding model
 - And more (run `copilot --help` to see all options)
 
 ### Set the Model
@@ -224,7 +225,7 @@ As of this writing, the available models include:
 You can specify the model when starting Copilot:
 
 ```powershell
-copilot --model claude-opus-4.5
+copilot --model claude-opus-4.6
 ```
 
 To make this your default, you can create an alias in your PowerShell profile or set it in your configuration.
@@ -304,44 +305,39 @@ This repository contains useful skills. To install them:
 
    ```powershell
    cd ~\repos
-   git clone git@github.com:ericchansen/skills.git
-   cd skills
+   git clone git@github.com:ericchansen/copilot-config.git
+   cd copilot-config
    ```
 
    Or using HTTPS:
 
    ```powershell
    cd ~\repos
-   git clone https://github.com/ericchansen/skills.git
-   cd skills
+   git clone https://github.com/ericchansen/copilot-config.git
+   cd copilot-config
    ```
 
-2. **Run the setup script**:
+3. **Run the setup script**:
 
    ```powershell
    .\setup.ps1
    ```
 
-3. The script will:
-   - Clone additional skill repositories from Anthropic and GitHub
-   - Ask you where to store them (default: `~/repos`)
-   - Handle any naming conflicts between skill sources
-   - Create junctions/symlinks to `~/.copilot/skills`
-
-> **Note:** If the clone fails, it's usually because you don't have SSH keys set up with GitHub. The script will show you the HTTPS URLs to clone manually if this happens.
+4. The script will:
+   - Back up your existing `~/.copilot/` config
+   - Symlink instructions, LSP config, and skills
+   - Patch your `config.json` with portable settings
+   - Offer to install optional dependencies (LSP servers, MarkItDown, etc.)
+   - Generate `~/.copilot/mcp-config.json` for MCP servers
 
 ### Skills in This Repository
 
 | Skill | Description |
 |-------|-------------|
-| **git-commit** | Helps you write professional Git commit messages following best practices |
-
-
-### Skill Limit
-
-> **⚠️ Important:** Copilot CLI can only "see" about **32 skills** at a time. The system prompt lists skills alphabetically and truncates at a token limit. Skills beyond the cutoff are completely invisible to the AI and won't be triggered.
-
-The setup script uses an **allowlist** (`$skillAllowlist` in `setup.ps1`) to control which skills are linked. To add a new skill, you must remove one from the allowlist first. Run `setup.ps1` again after editing the list.
+| **git-commit** | Conventional commit messages with auto-detected type/scope and secret scanning |
+| **git-safety-scan** | Pre-push scan for secrets, PII, and sensitive data |
+| **gh-pr-create** | Create GitHub PRs with properly formatted markdown bodies |
+| **summon-the-knights-of-the-round-table** | Multi-model brainstorming with randomized debate roles |
 
 ### The Weekly Impact Summary Skill
 
@@ -380,7 +376,7 @@ Congratulations! You now have a fully configured GitHub Copilot CLI.
 Once you've installed the skills from this repository and have WorkIQ set up, start a Copilot session and try:
 
 ```powershell
-copilot --model claude-opus-4.5 --experimental
+copilot --model claude-opus-4.6 --experimental
 ```
 
 Then inside the session:

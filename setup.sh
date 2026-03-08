@@ -630,6 +630,18 @@ if [[ -d "$COPILOT_HOME" ]]; then
 
     write_success "Backed up to $BACKUP_DIR"
     SUMMARY_BACKED_UP=true
+
+    # Auto-cleanup: keep only 5 most recent backups
+    old_backups=()
+    while IFS= read -r d; do
+        old_backups+=("$d")
+    done < <(ls -dt "$HOME"/.copilot-backup-* 2>/dev/null | tail -n +6)
+    if [[ ${#old_backups[@]} -gt 0 ]]; then
+        for ob in "${old_backups[@]}"; do
+            rm -rf "$ob"
+        done
+        write_info "Cleaned up ${#old_backups[@]} old backup(s)"
+    fi
 else
     write_info "No existing ~/.copilot/ to back up"
 fi
@@ -1332,6 +1344,75 @@ if ! $NON_INTERACTIVE; then
     echo "or later. The agent works without them but some skills will"
     echo "be limited."
     echo ""
+
+    # --- LSP: typescript-language-server (npm) ---
+    if command -v typescript-language-server &>/dev/null; then
+        write_success "typescript-language-server already installed"
+        SUMMARY_OPTIONAL_SKIPPED+=("typescript-language-server")
+    else
+        read -rp "Install typescript-language-server? (TypeScript/JS code intelligence) [Y/n] " answer
+        if [[ -z "$answer" || "$answer" == "y" || "$answer" == "Y" ]]; then
+            write_info "Installing typescript-language-server via npm..."
+            if npm install -g typescript-language-server typescript 2>&1; then
+                write_success "typescript-language-server installed"
+                SUMMARY_OPTIONAL_INSTALLED+=("typescript-language-server")
+            else
+                write_err "typescript-language-server install failed"
+                SUMMARY_OPTIONAL_FAILED+=("typescript-language-server")
+            fi
+        else
+            write_info "Skipped typescript-language-server"
+            SUMMARY_OPTIONAL_SKIPPED+=("typescript-language-server")
+        fi
+    fi
+
+    # --- LSP: pyright-langserver (npm) ---
+    if command -v pyright-langserver &>/dev/null; then
+        write_success "pyright-langserver already installed"
+        SUMMARY_OPTIONAL_SKIPPED+=("pyright-langserver")
+    else
+        read -rp "Install pyright-langserver? (Python code intelligence) [Y/n] " answer
+        if [[ -z "$answer" || "$answer" == "y" || "$answer" == "Y" ]]; then
+            write_info "Installing pyright via npm..."
+            if npm install -g pyright 2>&1; then
+                write_success "pyright-langserver installed"
+                SUMMARY_OPTIONAL_INSTALLED+=("pyright-langserver")
+            else
+                write_err "pyright-langserver install failed"
+                SUMMARY_OPTIONAL_FAILED+=("pyright-langserver")
+            fi
+        else
+            write_info "Skipped pyright-langserver"
+            SUMMARY_OPTIONAL_SKIPPED+=("pyright-langserver")
+        fi
+    fi
+
+    # --- LSP: rust-analyzer (rustup) ---
+    if command -v rust-analyzer &>/dev/null; then
+        write_success "rust-analyzer already installed"
+        SUMMARY_OPTIONAL_SKIPPED+=("rust-analyzer")
+    else
+        if ! command -v rustup &>/dev/null; then
+            write_warn "rust-analyzer requires rustup (not found)"
+            write_info "Skipped rust-analyzer"
+            SUMMARY_OPTIONAL_SKIPPED+=("rust-analyzer")
+        else
+            read -rp "Install rust-analyzer? (Rust code intelligence) [Y/n] " answer
+            if [[ -z "$answer" || "$answer" == "y" || "$answer" == "Y" ]]; then
+                write_info "Installing rust-analyzer via rustup..."
+                if rustup component add rust-analyzer 2>&1; then
+                    write_success "rust-analyzer installed"
+                    SUMMARY_OPTIONAL_INSTALLED+=("rust-analyzer")
+                else
+                    write_err "rust-analyzer install failed"
+                    SUMMARY_OPTIONAL_FAILED+=("rust-analyzer")
+                fi
+            else
+                write_info "Skipped rust-analyzer"
+                SUMMARY_OPTIONAL_SKIPPED+=("rust-analyzer")
+            fi
+        fi
+    fi
 
     # --- MarkItDown (pip) ---
     if command -v markitdown &>/dev/null; then
