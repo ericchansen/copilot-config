@@ -139,6 +139,18 @@ MCP server configuration is defined in `mcp-servers.json` and generated into `~/
 |--------|------|------|---------|
 | powerbi-remote | `-Work` | http | Power BI Fabric API |
 
+## LSP Servers
+
+Language server configuration is defined in `.copilot/lsp-config.json` and symlinked to `~/.copilot/lsp-config.json` during setup.
+
+| Server | Binary | Install Command |
+|--------|--------|----------------|
+| TypeScript | `typescript-language-server` | `npm install -g typescript-language-server typescript` |
+| Python | `pyright-langserver` | `npm install -g pyright` |
+| Rust | `rust-analyzer` | `rustup component add rust-analyzer` |
+
+The setup script offers to install these as optional dependencies. They provide code intelligence (go-to-definition, references, hover, rename) when working in repos with these languages.
+
 ## Updating
 
 ```bash

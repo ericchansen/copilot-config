@@ -613,6 +613,15 @@ if (Test-Path $copilotHome) {
 
     Write-Success "Backed up to $backupDir"
     $script:summary.BackedUp = $true
+
+    # Clean up old backups — keep only the 5 most recent
+    $oldBackups = Get-ChildItem -Path $env:USERPROFILE -Directory -Filter ".copilot-backup-*" |
+        Sort-Object Name -Descending |
+        Select-Object -Skip 5
+    if ($oldBackups.Count -gt 0) {
+        $oldBackups | ForEach-Object { Remove-Item $_.FullName -Recurse -Force }
+        Write-Info "Cleaned up $($oldBackups.Count) old backup(s)"
+    }
 } else {
     Write-Info "No existing ~/.copilot/ to back up"
 }
@@ -1423,6 +1432,95 @@ if (-not $NonInteractive) {
     Write-Host "or later. The agent works without them but some skills will"
     Write-Host "be limited."
     Write-Host ""
+
+    # --- LSP Server Binaries ---
+    # Language servers used by lsp-config.json for code intelligence in the agent.
+
+    # TypeScript Language Server (npm)
+    if (Get-Command typescript-language-server -ErrorAction SilentlyContinue) {
+        Write-Success "typescript-language-server already installed"
+        $script:summary.OptionalSkipped += "typescript-language-server"
+    } else {
+        $answer = Read-Host "Install TypeScript Language Server? (code intelligence for .ts files) [Y/n]"
+        if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
+            try {
+                Write-Info "Installing typescript-language-server and typescript via npm..."
+                npm install -g typescript-language-server typescript
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "typescript-language-server installed"
+                    $script:summary.OptionalInstalled += "typescript-language-server"
+                } else {
+                    Write-Err "typescript-language-server install failed"
+                    $script:summary.OptionalFailed += "typescript-language-server"
+                }
+            } catch {
+                Write-Err "typescript-language-server install failed: $_"
+                $script:summary.OptionalFailed += "typescript-language-server"
+            }
+        } else {
+            Write-Info "Skipped typescript-language-server"
+            $script:summary.OptionalSkipped += "typescript-language-server"
+        }
+    }
+
+    # Pyright Language Server (npm)
+    if (Get-Command pyright-langserver -ErrorAction SilentlyContinue) {
+        Write-Success "pyright-langserver already installed"
+        $script:summary.OptionalSkipped += "pyright-langserver"
+    } else {
+        $answer = Read-Host "Install Pyright Language Server? (code intelligence for .py files) [Y/n]"
+        if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
+            try {
+                Write-Info "Installing pyright via npm..."
+                npm install -g pyright
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "pyright-langserver installed"
+                    $script:summary.OptionalInstalled += "pyright-langserver"
+                } else {
+                    Write-Err "pyright-langserver install failed"
+                    $script:summary.OptionalFailed += "pyright-langserver"
+                }
+            } catch {
+                Write-Err "pyright-langserver install failed: $_"
+                $script:summary.OptionalFailed += "pyright-langserver"
+            }
+        } else {
+            Write-Info "Skipped pyright-langserver"
+            $script:summary.OptionalSkipped += "pyright-langserver"
+        }
+    }
+
+    # Rust Analyzer (rustup component)
+    if (Get-Command rust-analyzer -ErrorAction SilentlyContinue) {
+        Write-Success "rust-analyzer already installed"
+        $script:summary.OptionalSkipped += "rust-analyzer"
+    } else {
+        if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+            Write-Warn "rust-analyzer requires rustup (not found) — skipping"
+            $script:summary.OptionalSkipped += "rust-analyzer"
+        } else {
+            $answer = Read-Host "Install rust-analyzer? (code intelligence for .rs files, via rustup) [Y/n]"
+            if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
+                try {
+                    Write-Info "Installing rust-analyzer via rustup..."
+                    rustup component add rust-analyzer
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Success "rust-analyzer installed"
+                        $script:summary.OptionalInstalled += "rust-analyzer"
+                    } else {
+                        Write-Err "rust-analyzer install failed"
+                        $script:summary.OptionalFailed += "rust-analyzer"
+                    }
+                } catch {
+                    Write-Err "rust-analyzer install failed: $_"
+                    $script:summary.OptionalFailed += "rust-analyzer"
+                }
+            } else {
+                Write-Info "Skipped rust-analyzer"
+                $script:summary.OptionalSkipped += "rust-analyzer"
+            }
+        }
+    }
 
     # --- MarkItDown (pip) ---
     if (Get-Command markitdown -ErrorAction SilentlyContinue) {
