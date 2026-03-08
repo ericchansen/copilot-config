@@ -323,7 +323,7 @@ This repository contains useful skills. To install them:
    .\setup.ps1
    ```
 
-4. The script will:
+   The script will:
    - Back up your existing `~/.copilot/` config
    - Symlink instructions, LSP config, and skills
    - Patch your `config.json` with portable settings
