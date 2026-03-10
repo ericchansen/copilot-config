@@ -49,7 +49,7 @@ Don't just run `git status`. Also compare `~/.copilot/` against the repo for **n
 ## Skills Architecture
 
 - **Local skills** (`.copilot/skills/`) — managed by this repo, symlinked by setup scripts
-- **Community skills** (awesome-copilot, anthropic, msx-mcp, SPT-IQ) — installed via `copilot plugin install`, NOT managed by setup scripts
+- **Community skills** (awesome-copilot, anthropic, msx-mcp) — installed via `copilot plugin install`, NOT managed by setup scripts
 
 See `README.md` for plugin install commands.
 

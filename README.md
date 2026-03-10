@@ -25,7 +25,7 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
    **PowerShell (Windows):**
    ```powershell
    ./setup.ps1                                           # Interactive — prompts for options
-   ./setup.ps1 -Work                                     # Include work tools (MSX-MCP, SPT-IQ, Power BI)
+   ./setup.ps1 -Work                                     # Include work tools (MSX-MCP, Power BI)
    ./setup.ps1 -NonInteractive                           # No prompts, base only (safe for cron)
    ./setup.ps1 -NonInteractive -Work                     # No prompts, everything enabled
    ```
@@ -33,7 +33,7 @@ Personal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/ab
    **Bash (macOS/Linux):**
    ```bash
    ./setup.sh                                            # Interactive — prompts for options
-   ./setup.sh --work                                     # Include work tools (MSX-MCP, SPT-IQ, Power BI)
+   ./setup.sh --work                                     # Include work tools (MSX-MCP, Power BI)
    ./setup.sh --non-interactive                          # No prompts, base only (safe for cron)
    ./setup.sh --non-interactive --work                   # No prompts, everything enabled
    ```
@@ -215,12 +215,6 @@ copilot plugin install example-skills@anthropic-agent-skills     # frontend-desi
 
 ```bash
 copilot plugin install mcaps-microsoft/MSX-MCP
-```
-
-### SPT-IQ
-
-```bash
-copilot plugin install mcaps-microsoft/SPT-IQ
 ```
 
 ### Managing plugins

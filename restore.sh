@@ -16,7 +16,6 @@ for p in \
     "$HOME/repos/skills" \
     "$HOME/repos/copilot-config" \
     "$HOME/repos/msx-mcp" \
-    "$HOME/repos/SPT-IQ" \
     "$EXTERNAL_DIR"; do
     if [[ -d "$p" ]]; then
         OWNED_ROOTS+=("$(cd "$p" && pwd)")
