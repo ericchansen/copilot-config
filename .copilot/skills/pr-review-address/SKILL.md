@@ -96,7 +96,8 @@ To get thread node IDs:
 gh api graphql -f query='{
   repository(owner: "OWNER", name: "REPO") {
     pullRequest(number: PR_NUMBER) {
-      reviewThreads(first: 50) {
+      reviewThreads(first: 100) {
+        pageInfo { hasNextPage endCursor }
         nodes { id isResolved comments(first: 1) { nodes { body } } }
       }
     }
@@ -112,7 +113,7 @@ gh api graphql -f query='{
 
 1. **Get check run status:**
    ```
-   gh api repos/OWNER/REPO/commits/HEAD/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'
+   gh api repos/OWNER/REPO/commits/$(git rev-parse HEAD)/check-runs --jq '.check_runs[] | "\(.name) \(.conclusion)"'
    ```
    Or use the GitHub MCP `get_check_runs` tool on the PR.
 
