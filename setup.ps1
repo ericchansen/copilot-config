@@ -8,15 +8,15 @@
     with portable settings, symlinks local custom skills, builds local MCP servers,
     validates env vars, and generates ~/.copilot/mcp-config.json.
 
-    Community skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are installed via
+    Community skills (awesome-copilot, anthropic, msx-mcp) are installed via
     Copilot CLI plugins, not managed by this script. See README.md for plugin install
     commands.
 
     Idempotent — safe to re-run at any time.
 
 .PARAMETER Work
-    Include work tools: installs work plugins (MSX-MCP, SPT-IQ) and enables
-    the Power BI Remote MCP server.
+    Include work tools: installs the MSX-MCP plugin and enables the Power BI
+    Remote MCP server.
 
 .PARAMETER NonInteractive
     Run without prompts (safe for cron jobs). Defaults: skip replacing real dirs
