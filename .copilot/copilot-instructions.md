@@ -17,6 +17,7 @@
 | **🔐 Multiple GitHub accounts** | **`gh auth status` when git/gh ops fail** — wrong account is the most common cause |
 | **🔍 Check before asking** | **NEVER ask the user a question you could answer by reading a file, running a command, or checking yourself** — investigate first, ask only when you genuinely can't determine the answer |
 | **🚫 Never remove features silently** | **NEVER remove features, capabilities, or functionality based on internal reasoning without asking the user first** — even if it seems like a good idea |
+| **📧 Never send without preview** | **NEVER send emails, calendar invites, or Teams messages without showing a final preview and getting explicit "send it" / "yes, send" confirmation** — approving the *content* and approving the *time* are NOT the same as approving *send*. Always show the complete composed item (To, Subject, Body, Time) and ask "Ready to send?" as a distinct final step. |
 
 
 ## Git Workflow
