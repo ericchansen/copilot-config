@@ -99,7 +99,7 @@ Write-Host ""
 if ($adopted -gt 0) {
     Write-Host "  Next steps:" -ForegroundColor White
     Write-Host "    cd $(Split-Path $scriptDir -Leaf)" -ForegroundColor Gray
-    Write-Host "    git add -A && git commit -m 'feat: Adopt new skills'" -ForegroundColor Gray
+    Write-Host '    git add -A && git commit -m "feat: Adopt new skills"' -ForegroundColor Gray
     Write-Host "    git push" -ForegroundColor Gray
     Write-Host ""
 }
