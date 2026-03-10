@@ -5,7 +5,7 @@
 # with portable settings, symlinks local custom skills, builds local MCP servers,
 # validates env vars, and generates ~/.copilot/mcp-config.json.
 #
-# Community skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are installed via
+# Community skills (awesome-copilot, anthropic, msx-mcp) are installed via
 # Copilot CLI plugins, not managed by this script. See README.md for plugin install
 # commands.
 #
@@ -64,15 +64,14 @@ CONFIG_FILE_LINKS=("copilot-instructions.md" "lsp-config.json")
 PORTABLE_ALLOWED_KEYS=("banner" "model" "render_markdown" "theme" "experimental" "reasoning_effort")
 
 # External skill repositories (JSON)
-# All community and work skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are now
+# All community and work skills (awesome-copilot, anthropic, msx-mcp) are now
 # installed via Copilot CLI plugins — see README.md. No external repos are cloned.
 EXTERNAL_REPOS_JSON='[]'
 
 # Plugins to install via `copilot plugin install`
 # Each entry: {"name":"...","source":"...","work":true/false}
 PLUGINS_JSON='[
-  {"name":"msx-mcp","source":"mcaps-microsoft/MSX-MCP","work":true},
-  {"name":"spt-iq","source":"mcaps-microsoft/SPT-IQ","work":true}
+  {"name":"msx-mcp","source":"mcaps-microsoft/MSX-MCP","work":true}
 ]'
 
 # =============================================================================
@@ -533,7 +532,7 @@ INCLUDE_WORK=false
 if $WORK; then
     INCLUDE_WORK=true
 elif ! $NON_INTERACTIVE; then
-    read -rp "  Include work tools? (MSX-MCP, SPT-IQ plugins + Power BI MCP) [y/N] " answer
+    read -rp "  Include work tools? (MSX-MCP plugin + Power BI MCP) [y/N] " answer
     [[ "${answer,,}" == "y" ]] && INCLUDE_WORK=true
 fi
 

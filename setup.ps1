@@ -66,15 +66,14 @@ $portableAllowedKeys = @(
 )
 
 # External skill repositories
-# All community and work skills (awesome-copilot, anthropic, msx-mcp, SPT-IQ) are now
+# All community and work skills (awesome-copilot, anthropic, msx-mcp) are now
 # installed via Copilot CLI plugins — see README.md. No external repos are cloned.
 $externalRepos = @()
 
 # Plugins to install via `copilot plugin install`
 # Work = $true means the plugin is only installed when -Work is specified.
 $plugins = @(
-    @{ Name = "msx-mcp";  Source = "mcaps-microsoft/MSX-MCP"; Work = $true },
-    @{ Name = "spt-iq";   Source = "mcaps-microsoft/SPT-IQ";  Work = $true }
+    @{ Name = "msx-mcp";  Source = "mcaps-microsoft/MSX-MCP"; Work = $true }
 )
 
 # Resolve whether to include work tools (plugins + Power BI MCP server)
@@ -82,7 +81,7 @@ $includeWork = $false
 if ($Work) {
     $includeWork = $true
 } elseif (-not $NonInteractive) {
-    $answer = Read-Host "  Include work tools? (MSX-MCP, SPT-IQ plugins + Power BI MCP) [y/N]"
+    $answer = Read-Host "  Include work tools? (MSX-MCP plugin + Power BI MCP) [y/N]"
     if ($answer -eq "y" -or $answer -eq "Y") {
         $includeWork = $true
     }
