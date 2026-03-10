@@ -1,6 +1,6 @@
 ---
 name: clean
-description: 'Post-merge git cleanup — checkout main/master, pull latest, delete merged local and remote branches, verify clean working state. Use when user says "clean up", "rebased and merged", "merged, clean up", "cleanup branches", "back to main", or any variant of post-merge housekeeping.'
+description: 'Post-merge git cleanup — checkout main/master, pull latest, delete merged local branches, prune remote-tracking branches, verify clean working state. Use when user says "clean up", "rebased and merged", "merged, clean up", "cleanup branches", "back to main", or any variant of post-merge housekeeping.'
 license: MIT
 allowed-tools: Bash
 ---
@@ -48,13 +48,13 @@ If `--ff-only` fails, use `git pull --rebase` and report it.
 Delete local branches that have been merged into the default branch:
 
 ```bash
-git branch --merged | grep -v '^\*\|main\|master\|develop' | xargs -r git branch -d
+git branch --merged | grep -vE '^\*|^  (main|master|develop)$' | xargs git branch -d 2>/dev/null || true
 ```
 
 On Windows (PowerShell), use:
 
 ```powershell
-git branch --merged | Where-Object { $_ -notmatch '^\*|main|master|develop' } | ForEach-Object { git branch -d $_.Trim() }
+git branch --merged | Where-Object { $_ -notmatch '^\*' -and $_.Trim() -notmatch '^(main|master|develop)$' } | ForEach-Object { git branch -d $_.Trim() }
 ```
 
 ### 5. Prune remote tracking branches

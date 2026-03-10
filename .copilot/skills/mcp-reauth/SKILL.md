@@ -27,13 +27,21 @@ The `<hash>` is a SHA-256 of the server URL. The `.json` file maps hash → serv
 Scan `~/.copilot/` for `*.tokens.json` files and resolve each to its server by reading the companion `<hash>.json`:
 
 ```powershell
-Get-ChildItem "$env:USERPROFILE\.copilot" -Filter "*.json" -Depth 1 |
+Get-ChildItem "$env:USERPROFILE\.copilot" -Filter "*.json" |
   Where-Object { $_.Name -match "^[a-f0-9]{64}\.json$" } |
   ForEach-Object {
     $hash = $_.BaseName
     $tokensFile = Join-Path $_.DirectoryName "$hash.tokens.json"
     $meta = Get-Content $_.FullName -Raw | ConvertFrom-Json
-    $serverUrl = $meta.serverUrl ?? $meta.url ?? $meta.name ?? "unknown"
+    if ($null -ne $meta.serverUrl) {
+      $serverUrl = $meta.serverUrl
+    } elseif ($null -ne $meta.url) {
+      $serverUrl = $meta.url
+    } elseif ($null -ne $meta.name) {
+      $serverUrl = $meta.name
+    } else {
+      $serverUrl = "unknown"
+    }
     $hasTokens = Test-Path $tokensFile
     $tokensAge = if ($hasTokens) { (Get-Item $tokensFile).LastWriteTime } else { $null }
     [PSCustomObject]@{
