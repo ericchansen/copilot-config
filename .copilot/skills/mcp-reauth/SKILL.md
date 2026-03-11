@@ -49,7 +49,7 @@ Get-ChildItem $oauthDir -Filter "*.json" |
     $tokensAge = if ($hasTokens) { (Get-Item $tokensFile).LastWriteTime } else { $null }
     $verifierFile = Join-Path $_.DirectoryName "$hash.verifier"
     $verifierAge = if (Test-Path $verifierFile) { (Get-Item $verifierFile).LastWriteTime } else { $null }
-    $hasStaleVerifier = $null -ne $verifierAge -and $verifierAge -lt (Get-Date).AddMinutes(-2)
+    $hasStaleVerifier = $null -ne $verifierAge -and $verifierAge -lt (Get-Date).AddMinutes(-2) -and -not $hasTokens
     [PSCustomObject]@{
       Hash       = $hash.Substring(0, 12) + "..."
       Server     = $serverUrl
@@ -97,7 +97,7 @@ Display a table of all cached tokens:
 
 Status values:
 - **cached** — tokens exist and were last refreshed at the shown time
-- **⚠️ stale auth** — a `.verifier` file older than 2 minutes exists without successful token completion. This typically means a previous OAuth flow was interrupted or failed. Auth will keep failing until cleared. (A `.verifier` younger than 2 minutes may indicate an active in-progress flow — don't clear it.)
+- **⚠️ stale auth** — a `.verifier` file older than 2 minutes exists without valid cached tokens. This means a previous OAuth flow was interrupted or failed. Auth will keep failing until cleared. (A `.verifier` with valid tokens is normal — the tokens succeeded despite the leftover verifier. A `.verifier` younger than 2 minutes may indicate an active in-progress flow — don't clear it.)
 - **no tokens** — no cached tokens (will prompt login on next use)
 
 ### 4. Determine action
@@ -157,7 +157,9 @@ If clearing tokens + verifier still fails with `AADSTS9010010` ("resource doesn'
 
 ```powershell
 $oauthDir = Join-Path $HOME ".copilot" "mcp-oauth-config"
-Get-ChildItem $oauthDir -Filter "$($fullHash)*" | Remove-Item -Force
+if (Test-Path $oauthDir) {
+    Get-ChildItem $oauthDir -Filter "$($fullHash)*" | Remove-Item -Force
+}
 ```
 
 **When to use nuclear clear:**
