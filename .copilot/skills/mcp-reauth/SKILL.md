@@ -28,7 +28,8 @@ The `<hash>` is a SHA-256 of the server URL. The `.json` file maps hash → serv
 Scan `~/.copilot/mcp-oauth-config/` for `*.json` metadata files and resolve each to its server:
 
 ```powershell
-$oauthDir = Join-Path $env:USERPROFILE ".copilot" "mcp-oauth-config"
+$oauthDir = Join-Path $HOME ".copilot" "mcp-oauth-config"
+if (-not (Test-Path $oauthDir)) { return @() }
 Get-ChildItem $oauthDir -Filter "*.json" |
   Where-Object { $_.Name -match "^[a-f0-9]{64}\.json$" } |
   ForEach-Object {
@@ -47,7 +48,8 @@ Get-ChildItem $oauthDir -Filter "*.json" |
     $hasTokens = Test-Path $tokensFile
     $tokensAge = if ($hasTokens) { (Get-Item $tokensFile).LastWriteTime } else { $null }
     $verifierFile = Join-Path $_.DirectoryName "$hash.verifier"
-    $hasStaleVerifier = Test-Path $verifierFile
+    $verifierAge = if (Test-Path $verifierFile) { (Get-Item $verifierFile).LastWriteTime } else { $null }
+    $hasStaleVerifier = $null -ne $verifierAge -and $verifierAge -lt (Get-Date).AddMinutes(-2)
     [PSCustomObject]@{
       Hash       = $hash.Substring(0, 12) + "..."
       Server     = $serverUrl
@@ -95,7 +97,7 @@ Display a table of all cached tokens:
 
 Status values:
 - **cached** — tokens exist and were last refreshed at the shown time
-- **⚠️ stale auth** — a `.verifier` file exists, meaning a previous OAuth flow failed or was interrupted. Auth will keep failing until cleared.
+- **⚠️ stale auth** — a `.verifier` file older than 2 minutes exists without successful token completion. This typically means a previous OAuth flow was interrupted or failed. Auth will keep failing until cleared. (A `.verifier` younger than 2 minutes may indicate an active in-progress flow — don't clear it.)
 - **no tokens** — no cached tokens (will prompt login on next use)
 
 ### 4. Determine action
@@ -140,7 +142,7 @@ Always include an "ALL — clear everything" option at the end.
 For each selected server, delete the `.tokens.json` file AND any `.verifier` file (stale PKCE state):
 
 ```powershell
-$oauthDir = Join-Path $env:USERPROFILE ".copilot" "mcp-oauth-config"
+$oauthDir = Join-Path $HOME ".copilot" "mcp-oauth-config"
 $tokensFile = Join-Path $oauthDir "$($fullHash).tokens.json"
 $verifierFile = Join-Path $oauthDir "$($fullHash).verifier"
 Remove-Item $tokensFile -Force -ErrorAction SilentlyContinue
@@ -154,7 +156,7 @@ Remove-Item $verifierFile -Force -ErrorAction SilentlyContinue
 If clearing tokens + verifier still fails with `AADSTS9010010` ("resource doesn't match requested scopes"), the `.json` config file itself may have a **stale redirect URI** with a hardcoded port from a previous session. Delete ALL files for that hash to force the CLI to rediscover the endpoint from scratch via RFC 9728:
 
 ```powershell
-$oauthDir = Join-Path $env:USERPROFILE ".copilot" "mcp-oauth-config"
+$oauthDir = Join-Path $HOME ".copilot" "mcp-oauth-config"
 Get-ChildItem $oauthDir -Filter "$($fullHash)*" | Remove-Item -Force
 ```
 
