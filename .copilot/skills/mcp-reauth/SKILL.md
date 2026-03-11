@@ -106,6 +106,7 @@ Based on the user's request:
 - **Specific server mentioned** (e.g., "reauth Power BI", "wrong account for Dataverse") → Skip to step 5 with those servers pre-selected.
 - **"clear all" / "reauth everything"** → Confirm with user, then clear all `.tokens.json` files.
 - **General "reauth" / "wrong account"** → Use `ask_user` to let them pick which servers.
+- **User reports `AADSTS9010010` or "Authorization Failed" loops** → Recommend nuclear clear (step 6b) for the affected server. The normal token clear won't fix this — the stale `.json` config with a hardcoded redirect port is the root cause.
 
 ### 5. Ask which servers to clear (if not already determined)
 
@@ -148,6 +149,22 @@ Remove-Item $verifierFile -Force -ErrorAction SilentlyContinue
 
 **Do NOT delete the `<hash>.json` metadata file** — it maps the hash to the server URL and is needed for re-discovery.
 
+### 6b. Nuclear clear (if normal clear doesn't fix auth)
+
+If clearing tokens + verifier still fails with `AADSTS9010010` ("resource doesn't match requested scopes"), the `.json` config file itself may have a **stale redirect URI** with a hardcoded port from a previous session. Delete ALL files for that hash to force the CLI to rediscover the endpoint from scratch via RFC 9728:
+
+```powershell
+$oauthDir = Join-Path $env:USERPROFILE ".copilot" "mcp-oauth-config"
+Get-ChildItem $oauthDir -Filter "$($fullHash)*" | Remove-Item -Force
+```
+
+**When to use nuclear clear:**
+- `AADSTS9010010` persists after normal token clear + CLI restart
+- The `.json` config has a `redirectUri` with a port that was valid in a previous session but is no longer listening
+- The server changed its OAuth discovery metadata since the config was cached
+
+After nuclear clear, the CLI will do fresh RFC 9728 discovery on next use — new config, new port, new tokens.
+
 ### 7. Report results
 
 ```
@@ -165,6 +182,8 @@ Remove-Item $verifierFile -Force -ErrorAction SilentlyContinue
 - **No tokens found**: Report "No cached MCP tokens found in `~/.copilot/mcp-oauth-config/`. Tokens are created when you first use a remote MCP server."
 - **Token file already missing**: Skip silently, report as "already cleared".
 - **Stale verifier without tokens**: This means a previous OAuth flow was interrupted. Clear the `.verifier` file — it blocks all future auth attempts for that server.
+- **`AADSTS9010010` after clearing tokens**: The `.json` config has a stale `redirectUri` with a hardcoded port. Use nuclear clear (step 6b) to delete all files for that hash, then restart CLI. This forces fresh RFC 9728 discovery.
+- **Auth keeps failing on every CLI restart**: Multiple browser tabs opening with "Authorization Failed" — this is the stale config + verifier cycle. Nuclear clear resolves it.
 - **User says "which account am I logged in as?"**: The `.tokens.json` files contain OAuth tokens but typically don't include human-readable account info. Suggest using the MCP server itself to check (e.g., `msx_auth_status` for Dataverse, or making a test query).
 
 ## Trigger Phrases
