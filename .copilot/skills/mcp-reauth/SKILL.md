@@ -7,16 +7,17 @@ allowed-tools: powershell, read_powershell, write_powershell, ask_user
 
 # MCP Server Re-Authentication
 
-Manage OAuth token caches for remote MCP servers (Power BI, Dataverse, Outlook, Teams, SharePoint, Word, etc.). Copilot CLI caches OAuth tokens as `<hash>.tokens.json` files in `~/.copilot/`. This skill lets you inspect, clear, and force re-authentication.
+Manage OAuth token caches for remote MCP servers (Power BI, Dataverse, Outlook, Teams, SharePoint, Word, etc.). Copilot CLI caches OAuth tokens as `<hash>.tokens.json` files in `~/.copilot/mcp-oauth-config/`. This skill lets you inspect, clear, and force re-authentication.
 
 ## Token Storage
 
-Copilot CLI stores remote MCP server auth state as pairs of files in `~/.copilot/`:
+Copilot CLI stores remote MCP server auth state as files in `~/.copilot/mcp-oauth-config/`:
 
 | File | Purpose |
 |------|---------|
-| `<hash>.json` | Server metadata (URL, name) — **do not delete** |
-| `<hash>.tokens.json` | Cached OAuth tokens — **delete to force re-login** |
+| `<hash>.json` | Server metadata (URL, client ID, redirect URI) — **do not delete** |
+| `<hash>.tokens.json` | Cached OAuth tokens (access + refresh) — **delete to force re-login** |
+| `<hash>.verifier` | PKCE verifier from an in-progress or stale OAuth flow — **delete if auth is stuck** |
 
 The `<hash>` is a SHA-256 of the server URL. The `.json` file maps hash → server URL. The `.tokens.json` file holds the cached access/refresh tokens.
 
@@ -24,10 +25,11 @@ The `<hash>` is a SHA-256 of the server URL. The `.json` file maps hash → serv
 
 ### 1. Discover cached tokens
 
-Scan `~/.copilot/` for `*.tokens.json` files and resolve each to its server by reading the companion `<hash>.json`:
+Scan `~/.copilot/mcp-oauth-config/` for `*.json` metadata files and resolve each to its server:
 
 ```powershell
-Get-ChildItem "$env:USERPROFILE\.copilot" -Filter "*.json" |
+$oauthDir = Join-Path $env:USERPROFILE ".copilot" "mcp-oauth-config"
+Get-ChildItem $oauthDir -Filter "*.json" |
   Where-Object { $_.Name -match "^[a-f0-9]{64}\.json$" } |
   ForEach-Object {
     $hash = $_.BaseName
@@ -44,11 +46,14 @@ Get-ChildItem "$env:USERPROFILE\.copilot" -Filter "*.json" |
     }
     $hasTokens = Test-Path $tokensFile
     $tokensAge = if ($hasTokens) { (Get-Item $tokensFile).LastWriteTime } else { $null }
+    $verifierFile = Join-Path $_.DirectoryName "$hash.verifier"
+    $hasStaleVerifier = Test-Path $verifierFile
     [PSCustomObject]@{
       Hash       = $hash.Substring(0, 12) + "..."
       Server     = $serverUrl
       HasTokens  = $hasTokens
       LastAuth   = $tokensAge
+      StaleAuth  = $hasStaleVerifier
       FullHash   = $hash
     }
   }
@@ -77,16 +82,21 @@ Display a table of all cached tokens:
 ```
 🔐 MCP Server Token Cache
 
-  Server                  Status    Last Auth
-  ─────────────────────   ────────  ─────────────────
-  Power BI / Fabric       cached    10 min ago
-  MSX Dataverse           cached    2 hours ago
-  Outlook Calendar        cached    2 hours ago
-  Outlook Mail            cached    2 hours ago
-  SharePoint / OneDrive   cached    2 hours ago
-  Word                    cached    1 hour ago
-  Teams                   cached    2 hours ago
+  Server                  Status         Last Auth
+  ─────────────────────   ────────────   ─────────────────
+  Power BI / Fabric       ⚠️ stale auth  (auth flow stuck)
+  MSX Dataverse           cached         2 hours ago
+  Outlook Calendar        cached         2 hours ago
+  Outlook Mail            cached         2 hours ago
+  SharePoint / OneDrive   cached         2 hours ago
+  Word                    cached         1 hour ago
+  Teams                   cached         2 hours ago
 ```
+
+Status values:
+- **cached** — tokens exist and were last refreshed at the shown time
+- **⚠️ stale auth** — a `.verifier` file exists, meaning a previous OAuth flow failed or was interrupted. Auth will keep failing until cleared.
+- **no tokens** — no cached tokens (will prompt login on next use)
 
 ### 4. Determine action
 
@@ -126,12 +136,17 @@ Always include an "ALL — clear everything" option at the end.
 
 ### 6. Clear selected tokens
 
-For each selected server, delete ONLY the `.tokens.json` file (not the `.json` metadata):
+For each selected server, delete the `.tokens.json` file AND any `.verifier` file (stale PKCE state):
 
 ```powershell
-$tokensFile = "$env:USERPROFILE\.copilot\$($fullHash).tokens.json"
+$oauthDir = Join-Path $env:USERPROFILE ".copilot" "mcp-oauth-config"
+$tokensFile = Join-Path $oauthDir "$($fullHash).tokens.json"
+$verifierFile = Join-Path $oauthDir "$($fullHash).verifier"
 Remove-Item $tokensFile -Force -ErrorAction SilentlyContinue
+Remove-Item $verifierFile -Force -ErrorAction SilentlyContinue
 ```
+
+**Do NOT delete the `<hash>.json` metadata file** — it maps the hash to the server URL and is needed for re-discovery.
 
 ### 7. Report results
 
@@ -147,8 +162,9 @@ Remove-Item $tokensFile -Force -ErrorAction SilentlyContinue
 
 ### 8. Handle edge cases
 
-- **No tokens found**: Report "No cached MCP tokens found. Tokens are created when you first use a remote MCP server."
+- **No tokens found**: Report "No cached MCP tokens found in `~/.copilot/mcp-oauth-config/`. Tokens are created when you first use a remote MCP server."
 - **Token file already missing**: Skip silently, report as "already cleared".
+- **Stale verifier without tokens**: This means a previous OAuth flow was interrupted. Clear the `.verifier` file — it blocks all future auth attempts for that server.
 - **User says "which account am I logged in as?"**: The `.tokens.json` files contain OAuth tokens but typically don't include human-readable account info. Suggest using the MCP server itself to check (e.g., `msx_auth_status` for Dataverse, or making a test query).
 
 ## Trigger Phrases
