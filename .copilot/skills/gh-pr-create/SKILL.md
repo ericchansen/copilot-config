@@ -71,11 +71,11 @@ npm test
 
 ```
 create tool:
-  path: C:\Users\<user>\AppData\Local\Temp\gh-pr-body.md
+  path: <any temp path, e.g. pr-body.md in cwd or $env:TEMP>
   file_text: <the body content>
 ```
 
-This is the safest method. Even `Out-File -Encoding utf8NoBOM` can mangle non-ASCII characters (em-dashes, arrows, Unicode) because PowerShell's pipeline processes the string before writing.
+This is the safest method. Even `Out-File -Encoding utf8NoBOM` can mangle non-ASCII characters because PowerShell's pipeline processes the string before writing.
 
 **FALLBACK: PowerShell here-string** (only if create tool is unavailable):
 
@@ -84,13 +84,14 @@ $bodyFile = "$env:TEMP\gh-body-$(Get-Random).md"
 $body | Out-File -FilePath $bodyFile -Encoding utf8NoBOM
 ```
 
-**IMPORTANT: Avoid non-ASCII characters** in the body text. Replace:
-- Em-dashes (`---`) instead of Unicode em-dash
-- `->` instead of Unicode arrow
-- `--` instead of en-dash
-- Double-dash `--` for any separator that might be a Unicode dash
+**When using the PowerShell fallback**, avoid non-ASCII characters in the body text:
+- Use `--` instead of em-dash or en-dash
+- Use `->` instead of Unicode arrow
+- Stick to plain ASCII punctuation
 
-If you must use Unicode and are using the PowerShell fallback, test the file content with `Get-Content $bodyFile` before passing it to `gh`.
+This restriction does NOT apply when using the `create` tool (which writes clean UTF-8) or when the body text only contains ASCII.
+
+If you must use Unicode with the PowerShell fallback, test the file content with `Get-Content $bodyFile` before passing it to `gh`.
 
 ### 4. Execute the gh Command
 
