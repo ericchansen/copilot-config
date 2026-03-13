@@ -1,6 +1,6 @@
 ---
 name: gh-pr-create
-description: 'Create or edit GitHub PRs and issues with properly formatted markdown bodies. Use when user asks to create a PR, open a pull request, edit a PR body, create an issue, or when you need to use gh pr create, gh pr edit, or gh issue create. This skill MUST be used instead of running gh commands directly — it prevents PowerShell backtick escaping bugs that corrupt markdown formatting.'
+description: 'MANDATORY for any gh pr create, gh pr edit, gh issue create, or gh issue edit command. This skill MUST be invoked BEFORE running any gh CLI command that includes a --body flag. It prevents PowerShell encoding bugs that silently corrupt markdown: backticks become \^G, em-dashes become garbled Unicode, code spans break. If you are about to type gh pr create or gh pr edit, STOP and use this skill instead. Triggers: create PR, open pull request, edit PR, PR body, create issue, edit issue, push and create PR, gh pr, gh issue.'
 license: MIT
 allowed-tools: Bash
 ---
@@ -67,12 +67,30 @@ npm test
 
 ### 3. Write to Temp File
 
+**PREFERRED: Use the `create` tool** to write the file. This completely bypasses PowerShell's string encoding pipeline and guarantees clean UTF-8:
+
+```
+create tool:
+  path: C:\Users\<user>\AppData\Local\Temp\gh-pr-body.md
+  file_text: <the body content>
+```
+
+This is the safest method. Even `Out-File -Encoding utf8NoBOM` can mangle non-ASCII characters (em-dashes, arrows, Unicode) because PowerShell's pipeline processes the string before writing.
+
+**FALLBACK: PowerShell here-string** (only if create tool is unavailable):
+
 ```powershell
 $bodyFile = "$env:TEMP\gh-body-$(Get-Random).md"
 $body | Out-File -FilePath $bodyFile -Encoding utf8NoBOM
 ```
 
-Use `utf8NoBOM` encoding to prevent BOM characters from appearing in the GitHub rendering.
+**IMPORTANT: Avoid non-ASCII characters** in the body text. Replace:
+- Em-dashes (`---`) instead of Unicode em-dash
+- `->` instead of Unicode arrow
+- `--` instead of en-dash
+- Double-dash `--` for any separator that might be a Unicode dash
+
+If you must use Unicode and are using the PowerShell fallback, test the file content with `Get-Content $bodyFile` before passing it to `gh`.
 
 ### 4. Execute the gh Command
 
