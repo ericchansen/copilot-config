@@ -64,6 +64,12 @@
       "version": "0.1.0"
     },
     {
+      "name": "meeting-transcription",
+      "source": "plugins/meeting-transcription",
+      "description": "Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.",
+      "version": "0.1.0"
+    },
+    {
       "name": "pr-review-address",
       "source": "plugins/pr-review-address",
       "description": "Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.",

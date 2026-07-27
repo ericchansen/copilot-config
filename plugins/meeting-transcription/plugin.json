@@ -1,0 +1,12 @@
+{
+  "name": "meeting-transcription",
+  "description": "Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Eric Hansen",
+    "url": "https://github.com/ericchansen"
+  },
+  "repository": "https://github.com/ericchansen/copilot-marketplace",
+  "license": "MIT",
+  "skills": "skills/"
+}

@@ -10,7 +10,7 @@ general dev MCP servers).
 
 | File | Purpose |
 |------|---------|
-| `settings.json` | Preferences + `extraKnownMarketplaces` (copilot-marketplace) + `enabledPlugins` (10 personal plugins) |
+| `settings.json` | Preferences + `extraKnownMarketplaces` (copilot-marketplace) + `enabledPlugins` (personal plugins) |
 | `mcp-config.json` | General dev MCP servers: context7, msft-learn, playwright, chrome-devtools |
 | `lsp-config.json` | LSP servers: typescript, python, rust |
 | `link.ps1` | Deploys the config into `~/.copilot/` |

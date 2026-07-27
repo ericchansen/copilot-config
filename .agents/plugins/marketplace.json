@@ -74,6 +74,14 @@
       "category": "Productivity"
     },
     {
+      "name": "meeting-transcription",
+      "source": { "source": "local", "path": "./plugins/meeting-transcription" },
+      "interface": { "displayName": "Meeting Transcription" },
+      "description": "Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.",
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    },
+    {
       "name": "pr-review-address",
       "source": { "source": "local", "path": "./plugins/pr-review-address" },
       "interface": { "displayName": "PR Review Address" },
