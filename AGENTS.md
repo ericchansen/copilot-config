@@ -60,7 +60,7 @@ users copy skill folders into a scanned skills dir (see README).
    `source: { source: "local", path: "./plugins/{name}" }`, `interface.displayName`,
    `policy`, `category`).
 
-The `Validate` workflow enforces that all three marketplace manifests list the
+The `Validate` workflow enforces that all marketplace manifests list the
 same plugins and that the Codex manifests match each `plugin.json`.
 
 ## Skill YAML Frontmatter

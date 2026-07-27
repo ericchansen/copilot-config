@@ -1,0 +1,6 @@
+{
+  "name": "meeting-transcription",
+  "version": "0.1.0",
+  "description": "Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.",
+  "skills": "./skills/"
+}

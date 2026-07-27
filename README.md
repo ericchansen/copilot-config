@@ -1,6 +1,6 @@
 # copilot-marketplace
 
-Personal marketplace of 10 independently installable skill plugins. The skills use
+Personal multi-harness marketplace of independently installable skill plugins. The skills use
 the open [Agent Skills](https://agentskills.io) `SKILL.md` format, so the same
 plugins install across **GitHub Copilot CLI**, **Claude Code**, and **OpenAI
 Codex**, and can be reused in **opencode**.
@@ -67,10 +67,12 @@ field.
 - `clean` — Perform post-merge git cleanup by returning to main/master, pulling latest, deleting merged branches, pruning remotes, and verifying a clean state.
 - `doc-generator` — Generate professional PDF and Word (DOCX) documents from markdown source files.
 - `edge-browser` — Launch Microsoft Edge with a specific user profile and remote debugging enabled for CDP control.
+- `foundry-image-gen` — Generate and edit images using GPT-Image-2 deployed in Azure AI Foundry.
 - `git-code-review` — Run a structured closeout review over local, branch, commit, or PR diffs before shipping.
 - `git-commit` — Create conventional commits with diff analysis, safe staging, and repository guideline awareness.
 - `git-safety-scan` — Scan staged changes or commits for sensitive data before pushing to remote.
 - `github-writer` — Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.
+- `meeting-transcription` — Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.
 - `pr-review-address` — Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.
 
 ## Repository structure
@@ -85,7 +87,7 @@ plugins/<name>/
   skills/<name>/SKILL.md          Agent Skills (agentskills.io) definition
 ```
 
-Skill helper files live beside their `SKILL.md` files. The three marketplace
+Skill helper files live beside their `SKILL.md` files. The marketplace
 manifests are kept in sync by the `Validate` workflow. `copilot-home/` holds the
 portable user-level config (settings, MCP/LSP servers, instructions) deployed to
 `~/.copilot/` via `copilot-home/link.ps1` — see `copilot-home/README.md`.

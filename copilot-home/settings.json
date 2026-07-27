@@ -24,6 +24,7 @@
     "clean@copilot-marketplace": true,
     "pr-review-address@copilot-marketplace": true,
     "doc-generator@copilot-marketplace": true,
+    "meeting-transcription@copilot-marketplace": true,
     "edge-browser@copilot-marketplace": true,
     "azure-doctor@copilot-marketplace": true
   }
