@@ -96,6 +96,14 @@
       "description": "Generate and edit images using GPT-Image-2 deployed in Azure AI Foundry.",
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "AI"
+    },
+    {
+      "name": "visor",
+      "source": { "source": "local", "path": "./plugins/visor" },
+      "interface": { "displayName": "Visor" },
+      "description": "Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.",
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
     }
   ]
 }

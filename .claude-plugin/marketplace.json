@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Personal Copilot CLI plugins",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "plugins": [
     {
@@ -80,6 +80,12 @@
       "source": "plugins/foundry-image-gen",
       "description": "Generate and edit images using GPT-Image-2 deployed in Azure AI Foundry.",
       "version": "0.1.2"
+    },
+    {
+      "name": "visor",
+      "source": "plugins/visor",
+      "description": "Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.",
+      "version": "0.1.0"
     }
   ]
 }
