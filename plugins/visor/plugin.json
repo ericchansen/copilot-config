@@ -1,0 +1,12 @@
+{
+  "name": "visor",
+  "description": "Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Eric Hansen",
+    "url": "https://github.com/ericchansen"
+  },
+  "repository": "https://github.com/ericchansen/copilot-marketplace",
+  "license": "MIT",
+  "skills": "skills/"
+}

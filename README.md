@@ -74,6 +74,7 @@ field.
 - `github-writer` — Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.
 - `meeting-transcription` — Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.
 - `pr-review-address` — Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.
+- `visor` — Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.
 
 ## Repository structure
 
