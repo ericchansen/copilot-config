@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import io
 import json
@@ -398,6 +399,190 @@ class VisorApiObjectEndpointTests(unittest.TestCase):
 
         self.assertTrue(output["ok"])
         self.assertEqual(output["response"]["data"], {"requests": 10})
+
+
+class VisorApiCapabilitiesAndAccountTests(unittest.TestCase):
+    """Capability discovery and account-surface stubs (no browser/private access)."""
+
+    ACCOUNT_COMMANDS = ("favorites", "hides", "saved-searches", "preferences")
+
+    def test_capabilities_lists_all_public_operations_as_supported(self) -> None:
+        helper = load_helper()
+        payload = helper.capabilities_payload()
+
+        self.assertTrue(payload["ok"])
+        public_commands = {op["command"] for op in payload["public_api"]["operations"]}
+        self.assertEqual(
+            public_commands,
+            {
+                "facets",
+                "listings",
+                "listing",
+                "vin",
+                "dealers",
+                "dealer",
+                "dealer-listings",
+                "usage",
+            },
+        )
+        self.assertTrue(all(op["supported"] for op in payload["public_api"]["operations"]))
+        self.assertEqual(payload["public_api"]["base_url"], helper.BASE_URL)
+        self.assertIn("VISOR_API_KEY", payload["public_api"]["auth"])
+        self.assertIn("Bearer", payload["public_api"]["auth"])
+
+    def test_capabilities_marks_every_account_operation_unsupported_with_reason(self) -> None:
+        helper = load_helper()
+        payload = helper.capabilities_payload()
+
+        account = payload["account"]
+        self.assertFalse(account["supported"])
+        self.assertEqual(account["surface"], "account")
+        self.assertEqual(account["reason"], "unsupported_operation")
+        self.assertEqual(account["terms_url"], helper.TERMS_URL)
+        self.assertTrue(account["terms_url"].startswith("https://visor.vin/terms"))
+        self.assertTrue(account["next_actions"])
+
+        account_commands = {op["command"] for op in account["operations"]}
+        self.assertEqual(account_commands, set(self.ACCOUNT_COMMANDS))
+        self.assertTrue(all(op["supported"] is False for op in account["operations"]))
+
+    def test_capabilities_command_succeeds_without_visor_api_key(self) -> None:
+        environment = {
+            key: value for key, value in os.environ.items() if key != "VISOR_API_KEY"
+        }
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        result = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT_PATH), "capabilities"],
+            capture_output=True,
+            check=False,
+            env=environment,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["account"]["supported"])
+
+    def test_account_operations_raise_unsupported_operation_without_touching_network(
+        self,
+    ) -> None:
+        helper = load_helper()
+
+        def forbidden_urlopen(request, timeout):
+            raise AssertionError(
+                "account stub must never open a network connection: "
+                f"attempted {request.full_url!r}"
+            )
+
+        for command in self.ACCOUNT_COMMANDS:
+            with self.subTest(command=command):
+                with patch.object(helper, "urlopen", forbidden_urlopen):
+                    with self.assertRaises(helper.ClientError) as cm:
+                        helper.run_account_unsupported(command)
+
+                exc = cm.exception
+                self.assertEqual(exc.error_type, "unsupported_operation")
+                self.assertEqual(exc.details["surface"], "account")
+                self.assertEqual(exc.details["terms_url"], helper.TERMS_URL)
+                self.assertIn(command, exc.message)
+
+    def test_account_commands_fail_closed_via_cli_without_api_key_or_leakage(self) -> None:
+        environment = {
+            key: value for key, value in os.environ.items() if key != "VISOR_API_KEY"
+        }
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+
+        for command in self.ACCOUNT_COMMANDS:
+            with self.subTest(command=command):
+                result = subprocess.run(
+                    [sys.executable, "-B", str(SCRIPT_PATH), command],
+                    capture_output=True,
+                    check=False,
+                    env=environment,
+                    text=True,
+                )
+
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                error = json.loads(result.stderr)
+                self.assertFalse(error["ok"])
+                self.assertEqual(error["error"]["type"], "unsupported_operation")
+                self.assertEqual(error["error"]["surface"], "account")
+                self.assertIn("terms", error["error"]["terms_url"])
+
+                # Never claim empty success, never mention credential/browser
+                # sourcing for a capability this skill does not implement.
+                combined = (result.stdout + result.stderr).lower()
+                for forbidden in ("cookie", "chrome", "firefox", "cdp", "vis_live", "vis_test"):
+                    self.assertNotIn(forbidden, combined)
+
+    def test_account_stub_help_text_is_grammatical(self) -> None:
+        helper = load_helper()
+        parser = helper.build_parser()
+        subparsers_action = next(
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        )
+
+        for command in self.ACCOUNT_COMMANDS:
+            with self.subTest(command=command):
+                subparser = subparsers_action.choices[command]
+                help_text = subparser.format_help()
+                self.assertNotIn(". require", help_text)
+                self.assertNotIn(".require", help_text)
+
+    def test_usage_command_dispatches_via_main_without_falling_back(self) -> None:
+        def fake_urlopen(request, timeout):
+            self.assertIn("/v1/usage", request.full_url)
+            return FakeDetailResponse(b'{"data":{"requests":10}}')
+
+        stdout = io.StringIO()
+        with (
+            patch.object(sys, "argv", [str(SCRIPT_PATH), "usage"]),
+            patch.dict(os.environ, {"VISOR_API_KEY": "vis_live_unit_test_credential"}),
+            redirect_stdout(stdout),
+        ):
+            # `emit_json`'s `file=sys.stdout` default binds at module-exec
+            # time, so the helper must be loaded inside the redirect scope
+            # for the patched stream to take effect.
+            helper = load_helper()
+            with patch.object(helper, "urlopen", fake_urlopen):
+                exit_code = helper.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(json.loads(stdout.getvalue())["ok"])
+
+    def test_unrecognized_command_raises_internal_error_instead_of_usage_fallback(
+        self,
+    ) -> None:
+        helper = load_helper()
+
+        class FakeArgs:
+            command = "not-a-real-command"
+
+        class FakeParser:
+            def parse_args(self):
+                return FakeArgs()
+
+        def forbidden_urlopen(request, timeout):
+            raise AssertionError("an unrecognized command must never reach the network")
+
+        stderr = io.StringIO()
+        with (
+            patch.object(helper, "build_parser", return_value=FakeParser()),
+            patch.object(helper, "urlopen", forbidden_urlopen),
+            patch.object(sys, "argv", [str(SCRIPT_PATH), "not-a-real-command"]),
+            patch.dict(os.environ, {"VISOR_API_KEY": "vis_live_unit_test_credential"}),
+            redirect_stderr(stderr),
+        ):
+            exit_code = helper.main()
+
+        self.assertEqual(exit_code, 1)
+        error = json.loads(stderr.getvalue())
+        self.assertFalse(error["ok"])
+        self.assertEqual(error["error"]["type"], "internal_error")
 
 
 if __name__ == "__main__":
