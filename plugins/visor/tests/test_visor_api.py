@@ -87,6 +87,31 @@ class VisorApiSecurityTests(unittest.TestCase):
         self.assertNotIn(test_key, stdout.getvalue())
         self.assertNotIn(test_key, stderr.getvalue())
 
+    def test_user_agent_matches_plugin_version(self) -> None:
+        helper = load_helper()
+        plugin_json = json.loads(
+            (Path(__file__).parents[1] / "plugin.json").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(helper.PLUGIN_VERSION, plugin_json["version"])
+
+        captured_header: list[str | None] = []
+
+        def fake_urlopen(request, timeout):
+            captured_header.append(request.get_header("User-agent"))
+            return FakeResponse()
+
+        with patch.object(helper, "urlopen", fake_urlopen):
+            helper.request_json(
+                "facets",
+                {"facets": "make", "facet_value_limit": "1"},
+                "vis_live_unit_test_credential",
+                timeout=1.0,
+                max_attempts=1,
+            )
+
+        self.assertEqual(captured_header, [f"visor/{plugin_json['version']}"])
+
     def test_raw_argv_key_is_rejected_before_argparse_without_echo(self) -> None:
         environment = dict(
             os.environ,
@@ -184,6 +209,195 @@ class VisorApiSecurityTests(unittest.TestCase):
             self.assertEqual(raised.exception.error_type, "cache_error")
             self.assertFalse(cache_file.exists())
             self.assertEqual(list(Path(temp_dir).iterdir()), [])
+
+
+class FakeDetailResponse:
+    """Fake response mimicking a `{data: {...}}` object endpoint."""
+
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+        self.headers: dict[str, str] = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self._body
+
+
+class VisorApiObjectEndpointTests(unittest.TestCase):
+    """Coverage for the six documented endpoints beyond facets/listings."""
+
+    def _run_command(self, helper, args, urls: list[str]):
+        def fake_urlopen(request, timeout):
+            urls.append(request.full_url)
+            return FakeDetailResponse(b'{"data":{"id":"abc123"}}')
+
+        with patch.object(helper, "urlopen", fake_urlopen):
+            parser = helper.build_parser()
+            namespace = parser.parse_args(args)
+            api_key = "vis_live_unit_test_credential"
+            if namespace.command == "listing":
+                return helper.run_listing_detail(namespace, api_key)
+            if namespace.command == "vin":
+                return helper.run_vin(namespace, api_key)
+            if namespace.command == "dealer":
+                return helper.run_dealer_detail(namespace, api_key)
+            raise AssertionError(f"unhandled command {namespace.command}")
+
+    def test_listing_detail_encodes_id_into_path(self) -> None:
+        helper = load_helper()
+        urls: list[str] = []
+        output = self._run_command(
+            helper,
+            ["listing", "--listing-id", "abc 123#x"],
+            urls,
+        )
+        self.assertTrue(output["ok"])
+        self.assertIn("listings/abc%20123%23x", urls[0])
+
+    def test_vin_lookup_builds_expected_path(self) -> None:
+        helper = load_helper()
+        urls: list[str] = []
+        output = self._run_command(helper, ["vin", "--vin", "1HGCM82633A004352"], urls)
+        self.assertTrue(output["ok"])
+        self.assertIn("vins/1HGCM82633A004352", urls[0])
+
+    def test_dealer_detail_builds_expected_path(self) -> None:
+        helper = load_helper()
+        urls: list[str] = []
+        output = self._run_command(helper, ["dealer", "--dealer-id", "dealer-1"], urls)
+        self.assertTrue(output["ok"])
+        self.assertIn("dealers/dealer-1", urls[0])
+
+    def test_detail_query_params_match_openapi_contract(self) -> None:
+        helper = load_helper()
+
+        for command, identifier_flag in (
+            ("listing", "--listing-id"),
+            ("vin", "--vin"),
+        ):
+            with self.subTest(command=command):
+                urls: list[str] = []
+                output = self._run_command(
+                    helper,
+                    [command, identifier_flag, "abc123", "--param", "include=options"],
+                    urls,
+                )
+                self.assertTrue(output["ok"])
+                self.assertIn("include=options", urls[0])
+
+        parser = helper.build_parser()
+        namespace = parser.parse_args(
+            ["dealer", "--dealer-id", "dealer-1", "--param", "include=options"]
+        )
+        with self.assertRaises(helper.ClientError) as raised:
+            helper.run_dealer_detail(namespace, "vis_live_unit_test_credential")
+        self.assertEqual(raised.exception.error_type, "validation_error")
+
+    def test_path_segment_rejects_empty_separators_and_dot_segments(self) -> None:
+        helper = load_helper()
+        with self.assertRaises(helper.ClientError) as raised:
+            helper.path_segment("", "vin")
+        self.assertEqual(raised.exception.error_type, "validation_error")
+
+        for invalid in ("a/b", r"a\b", ".", "..", "  ..  "):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(helper.ClientError) as raised:
+                    helper.path_segment(invalid, "vin")
+                self.assertEqual(raised.exception.error_type, "validation_error")
+
+    def test_path_segment_strips_whitespace_before_validating_and_encoding(self) -> None:
+        helper = load_helper()
+
+        self.assertEqual(helper.path_segment("  abc123  ", "vin"), "abc123")
+        self.assertEqual(helper.path_segment("\tdealer-1\n", "dealer_id"), "dealer-1")
+
+        with self.assertRaises(helper.ClientError) as raised:
+            helper.path_segment("   ", "vin")
+        self.assertEqual(raised.exception.error_type, "validation_error")
+
+    def test_listing_detail_rejects_path_separator_in_id(self) -> None:
+        helper = load_helper()
+        parser = helper.build_parser()
+        namespace = parser.parse_args(["listing", "--listing-id", "abc/../secret"])
+        with self.assertRaises(helper.ClientError) as raised:
+            helper.run_listing_detail(namespace, "vis_live_unit_test_credential")
+        self.assertEqual(raised.exception.error_type, "validation_error")
+
+    def test_dealers_search_validates_params_and_paginates_fields(self) -> None:
+        helper = load_helper()
+
+        def fake_urlopen(request, timeout):
+            self.assertIn("dealers?", request.full_url)
+            return FakeDetailResponse(
+                b'{"data":[{"id":"d1"}],"pagination":{"total":1,"next_offset":null}}'
+            )
+
+        with patch.object(helper, "urlopen", fake_urlopen):
+            parser = helper.build_parser()
+            namespace = parser.parse_args(["dealers", "--param", "state=CA"])
+            output = helper.run_dealers(namespace, "vis_live_unit_test_credential")
+
+        self.assertTrue(output["ok"])
+        self.assertEqual(output["data"], [{"id": "d1"}])
+
+        parser = helper.build_parser()
+        namespace = parser.parse_args(["dealers", "--param", "dealer_type=franchise"])
+        with self.assertRaises(helper.ClientError) as raised:
+            helper.run_dealers(namespace, "vis_live_unit_test_credential")
+        self.assertEqual(raised.exception.error_type, "validation_error")
+
+    def test_dealers_search_rejects_malformed_pagination(self) -> None:
+        helper = load_helper()
+
+        def fake_urlopen(request, timeout):
+            # `pagination` is a list instead of the required object shape.
+            return FakeDetailResponse(b'{"data":[{"id":"d1"}],"pagination":[]}')
+
+        with patch.object(helper, "urlopen", fake_urlopen):
+            parser = helper.build_parser()
+            namespace = parser.parse_args(["dealers"])
+            with self.assertRaises(helper.ClientError) as raised:
+                helper.run_dealers(namespace, "vis_live_unit_test_credential")
+
+        self.assertEqual(raised.exception.error_type, "response_error")
+
+    def test_dealer_listings_uses_nested_path_and_shared_pagination(self) -> None:
+        helper = load_helper()
+        urls: list[str] = []
+
+        def fake_urlopen(request, timeout):
+            urls.append(request.full_url)
+            return FakeDetailResponse(
+                b'{"data":[],"pagination":{"total":0,"next_offset":null}}'
+            )
+
+        with patch.object(helper, "urlopen", fake_urlopen):
+            parser = helper.build_parser()
+            namespace = parser.parse_args(["dealer-listings", "--dealer-id", "d-9"])
+            output = helper.run_dealer_listings(namespace, "vis_live_unit_test_credential")
+
+        self.assertTrue(output["ok"])
+        self.assertIn("dealers/d-9/listings", urls[0])
+
+    def test_usage_command_requires_object_data(self) -> None:
+        helper = load_helper()
+
+        def fake_urlopen(request, timeout):
+            self.assertIn("/v1/usage", request.full_url)
+            return FakeDetailResponse(b'{"data":{"requests":10}}')
+
+        with patch.object(helper, "urlopen", fake_urlopen):
+            parser = helper.build_parser()
+            namespace = parser.parse_args(["usage"])
+            output = helper.run_usage(namespace, "vis_live_unit_test_credential")
+
+        self.assertTrue(output["ok"])
+        self.assertEqual(output["response"]["data"], {"requests": 10})
 
 
 if __name__ == "__main__":
