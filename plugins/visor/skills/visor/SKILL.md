@@ -127,6 +127,12 @@ The helper is dependency-free Python 3, emits structured JSON, never prints the
 key, and fails explicitly. Set `VISOR_API_KEY` in the environment before
 running it; never put the key in an argument.
 
+Commands cover every documented Public API endpoint: `facets`, `listings`,
+`listing` (one listing by id), `vin` (one VIN record), `dealers` (dealer
+search), `dealer` (one dealer by id), `dealer-listings` (one dealer's
+inventory), and `usage` (authenticated account usage). Run any command with
+`--help` for its exact flags.
+
 ## Required final output
 
 For each actual listing include:

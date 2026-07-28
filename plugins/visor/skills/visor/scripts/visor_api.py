@@ -14,11 +14,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
+PLUGIN_VERSION = "0.2.0"  # keep in sync with plugins/visor/plugin.json
 BASE_URL = "https://api.visor.vin/v1"
+USER_AGENT = f"visor/{PLUGIN_VERSION}"
 DEFAULT_FIELDS = ",".join(
     [
         "year",
@@ -74,6 +76,7 @@ COMMON_FILTERS = {
     "cylinders",
     "doors",
     "options_packages",
+    "option_slug",
     "features",
     "keywords",
     "vin_pattern",
@@ -117,6 +120,10 @@ COMMON_FILTERS = {
 LISTING_PARAMS = COMMON_FILTERS | {"sort", "include"}
 FACET_PARAMS = COMMON_FILTERS
 MODE_PARAMS = {"inventory_status", "sold_within_days", "snapshot_date"}
+DETAIL_PARAMS = {"include"}
+DEALER_DETAIL_PARAMS: set[str] = set()
+DEALERS_PARAMS = {"dealer_id", "state", "country", "type", "make", "q"}
+USAGE_PARAMS = {"start_date", "end_date", "metering_class"}
 USAGE_HEADERS = {
     "x-usage-class",
     "x-pricing-version",
@@ -204,6 +211,18 @@ def parse_params(values: list[str], allowed: set[str]) -> dict[str, str]:
     return params
 
 
+def path_segment(value: str, label: str) -> str:
+    """Validate and percent-encode a single path segment (no slashes)."""
+    value = value.strip()
+    if not value:
+        raise ClientError("validation_error", f"{label} must not be empty.")
+    if value in {".", ".."}:
+        raise ClientError("validation_error", f"{label} must not be a dot-segment.")
+    if "/" in value or "\\" in value:
+        raise ClientError("validation_error", f"{label} must not contain a path separator.")
+    return quote(value, safe="")
+
+
 def selected_headers(headers: Any) -> dict[str, str]:
     result: dict[str, str] = {}
     for name, value in headers.items():
@@ -238,7 +257,7 @@ def request_json(
             headers={
                 "Accept": "application/json",
                 "Authorization": authorization_header,
-                "User-Agent": "visor/0.1.0",
+                "User-Agent": USER_AGENT,
             },
             method="GET",
         )
@@ -508,6 +527,203 @@ def run_listings(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
     }
 
 
+def run_object_lookup(
+    args: argparse.Namespace,
+    api_key: str,
+    endpoint: str,
+    resource_label: str,
+    allowed_params: set[str],
+) -> dict[str, Any]:
+    """Shared GET-by-id handler for listing/vin/dealer detail lookups."""
+    params = parse_params(args.param, allowed_params)
+    payload, usage = request_json(
+        endpoint,
+        params,
+        api_key,
+        args.timeout,
+        args.max_attempts,
+    )
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
+        raise ClientError(
+            "response_error",
+            f"{resource_label} response did not contain the expected data object.",
+        )
+    return {
+        "ok": True,
+        "retrieved_at": utc_now(),
+        "source": f"{BASE_URL}/{endpoint}",
+        "docs": "https://api.visor.vin/docs",
+        "request_count": 1,
+        "query": params,
+        "usage": [usage],
+        "response": payload,
+    }
+
+
+def run_listing_detail(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
+    segment = path_segment(args.listing_id, "listing_id")
+    return run_object_lookup(
+        args,
+        api_key,
+        f"listings/{segment}",
+        "Listing detail",
+        DETAIL_PARAMS,
+    )
+
+
+def run_vin(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
+    segment = path_segment(args.vin, "vin")
+    return run_object_lookup(args, api_key, f"vins/{segment}", "VIN", DETAIL_PARAMS)
+
+
+def run_dealer_detail(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
+    segment = path_segment(args.dealer_id, "dealer_id")
+    return run_object_lookup(
+        args,
+        api_key,
+        f"dealers/{segment}",
+        "Dealer",
+        DEALER_DETAIL_PARAMS,
+    )
+
+
+def run_dealers(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
+    params = parse_params(args.param, DEALERS_PARAMS)
+    params["limit"] = str(args.limit)
+    params["offset"] = str(args.offset)
+
+    payload, usage = request_json(
+        "dealers",
+        params,
+        api_key,
+        args.timeout,
+        args.max_attempts,
+    )
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+        raise ClientError(
+            "response_error",
+            "Dealer search response did not match {data,pagination}.",
+        )
+    pagination = payload.get("pagination")
+    if not isinstance(pagination, dict):
+        raise ClientError(
+            "response_error",
+            "Dealer search response did not match {data,pagination}.",
+        )
+    return {
+        "ok": True,
+        "retrieved_at": utc_now(),
+        "source": f"{BASE_URL}/dealers",
+        "docs": "https://api.visor.vin/docs",
+        "request_count": 1,
+        "query": params,
+        "usage": [usage],
+        "data": payload["data"],
+        "pagination": pagination,
+    }
+
+
+def run_dealer_listings(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
+    segment = path_segment(args.dealer_id, "dealer_id")
+    base_params = parse_params(args.param, LISTING_PARAMS)
+    base_params.update(mode_params(args))
+    base_params["fields"] = args.fields
+    base_params["limit"] = str(args.limit)
+
+    rows: list[Any] = []
+    usage: list[dict[str, str]] = []
+    page_offsets: list[int] = []
+    offset = args.offset
+    next_offset: Any = offset
+    total: Any = None
+    pages_fetched = 0
+    endpoint = f"dealers/{segment}/listings"
+
+    while pages_fetched < args.pages and next_offset is not None:
+        page_params = dict(base_params)
+        page_params["offset"] = str(offset)
+        page_offsets.append(offset)
+        payload, headers = request_json(
+            endpoint,
+            page_params,
+            api_key,
+            args.timeout,
+            args.max_attempts,
+        )
+        if not isinstance(payload, dict):
+            raise ClientError(
+                "response_error",
+                "Dealer listing response was not a JSON object.",
+            )
+        page_rows = payload.get("data")
+        pagination = payload.get("pagination")
+        if not isinstance(page_rows, list) or not isinstance(pagination, dict):
+            raise ClientError(
+                "response_error",
+                "Dealer listing response did not match {data,pagination}.",
+            )
+        rows.extend(page_rows)
+        usage.append(headers)
+        pages_fetched += 1
+        total = pagination.get("total", total)
+        next_offset = pagination.get("next_offset")
+        if next_offset is None:
+            break
+        try:
+            offset = int(next_offset)
+        except (TypeError, ValueError) as exc:
+            raise ClientError(
+                "response_error",
+                "pagination.next_offset was not an integer or null.",
+            ) from exc
+
+    return {
+        "ok": True,
+        "retrieved_at": utc_now(),
+        "source": f"{BASE_URL}/{endpoint}",
+        "docs": "https://api.visor.vin/docs",
+        "mode": args.mode,
+        "request_count": pages_fetched,
+        "query": base_params,
+        "usage": usage,
+        "data": rows,
+        "pagination": {
+            "requested_offset": args.offset,
+            "page_offsets": page_offsets,
+            "pages_fetched": pages_fetched,
+            "rows_returned": len(rows),
+            "total_at_request_time": total,
+            "next_offset": next_offset,
+        },
+    }
+
+
+def run_usage(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
+    params = parse_params(args.param, USAGE_PARAMS)
+    payload, usage = request_json(
+        "usage",
+        params,
+        api_key,
+        args.timeout,
+        args.max_attempts,
+    )
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), (dict, list)):
+        raise ClientError(
+            "response_error",
+            "Usage response did not contain the expected data.",
+        )
+    return {
+        "ok": True,
+        "retrieved_at": utc_now(),
+        "source": f"{BASE_URL}/usage",
+        "docs": "https://api.visor.vin/docs",
+        "request_count": 1,
+        "query": params,
+        "usage": [usage],
+        "response": payload,
+    }
+
+
 def positive_int(value: str) -> int:
     try:
         parsed = int(value)
@@ -601,6 +817,58 @@ def build_parser() -> argparse.ArgumentParser:
     listings.add_argument("--offset", type=nonnegative_int, default=0)
     listings.add_argument("--pages", type=bounded_int(1, 100), default=1)
     listings.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+
+    listing = subparsers.add_parser(
+        "listing",
+        help="Retrieve one listing detail record by id.",
+    )
+    listing.add_argument("--listing-id", dest="listing_id", required=True)
+    listing.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+
+    vin = subparsers.add_parser(
+        "vin",
+        help="Retrieve the current or latest known VIN record.",
+    )
+    vin.add_argument("--vin", required=True)
+    vin.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+
+    dealers = subparsers.add_parser("dealers", help="Search public dealer summaries.")
+    dealers.add_argument("--limit", type=bounded_int(1, 100), default=50)
+    dealers.add_argument("--offset", type=nonnegative_int, default=0)
+    dealers.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+
+    dealer = subparsers.add_parser("dealer", help="Retrieve one dealer by id.")
+    dealer.add_argument("--dealer-id", dest="dealer_id", required=True)
+    dealer.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+
+    dealer_listings = subparsers.add_parser(
+        "dealer-listings",
+        help="Search attributed dealer inventory.",
+    )
+    dealer_listings.add_argument("--dealer-id", dest="dealer_id", required=True)
+    dealer_listings.add_argument(
+        "--mode",
+        choices=["active", "sold", "snapshot"],
+        default="active",
+    )
+    dealer_listings.add_argument("--sold-within-days", type=positive_int)
+    dealer_listings.add_argument("--snapshot-date")
+    dealer_listings.add_argument("--fields", default=DEFAULT_FIELDS)
+    dealer_listings.add_argument("--limit", type=bounded_int(1, 100), default=100)
+    dealer_listings.add_argument("--offset", type=nonnegative_int, default=0)
+    dealer_listings.add_argument("--pages", type=bounded_int(1, 100), default=1)
+    dealer_listings.add_argument(
+        "--param",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+    )
+
+    usage = subparsers.add_parser(
+        "usage",
+        help="Summarize authenticated account usage.",
+    )
+    usage.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     return parser
 
 
@@ -632,8 +900,20 @@ def main() -> int:
             )
         if args.command == "facets":
             output = run_facets(args, api_key)
-        else:
+        elif args.command == "listings":
             output = run_listings(args, api_key)
+        elif args.command == "listing":
+            output = run_listing_detail(args, api_key)
+        elif args.command == "vin":
+            output = run_vin(args, api_key)
+        elif args.command == "dealers":
+            output = run_dealers(args, api_key)
+        elif args.command == "dealer":
+            output = run_dealer_detail(args, api_key)
+        elif args.command == "dealer-listings":
+            output = run_dealer_listings(args, api_key)
+        else:
+            output = run_usage(args, api_key)
     except ClientError as exc:
         error = {
             "ok": False,
