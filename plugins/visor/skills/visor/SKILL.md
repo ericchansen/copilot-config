@@ -44,6 +44,7 @@ Read only the references needed for the active phase:
 | Query Visor, discover canonical facets, page results, or interpret Visor fields/modes/cost | Read [references/visor-api.md](references/visor-api.md), then run [scripts/visor_api.py](scripts/visor_api.py) instead of reinventing calls |
 | Compare new versus used, assess price, calculate OTD/holding cost, compare cash/finance, or analyze historical market gaps | Read [references/deal-evaluation.md](references/deal-evaluation.md) |
 | Rank actual listings or make any buy/dealer-contact recommendation | Read [references/evidence-gates.md](references/evidence-gates.md) before ranking |
+| A user asks about their Visor favorites, hidden listings, saved searches, or shopping preferences (account state) | Read [references/account-state.md](references/account-state.md) before responding |
 
 These files are independent, one level deep, and linked directly here. Do not
 rely on a reference to tell you to load another reference.
@@ -74,6 +75,11 @@ rely on a reference to tell you to load another reference.
   variables.
 - Never use a browser/CDP or private endpoints for Visor. Use only its supported
   Public API at `https://api.visor.vin/v1`.
+- Visor account state (favorites, hidden listings, saved searches, shopping
+  preferences) is **not** exposed by the Public API and must never be
+  automated through private app endpoints, session cookies, or a driven
+  browser — see [references/account-state.md](references/account-state.md).
+  Never imply that a public inventory/dealer command can retrieve it.
 - Facet-first discovery precedes narrow Visor searches; successful zero-result
   searches can still be billable.
 - Active inventory is not proof of dealer availability. Distinguish stock,
@@ -132,6 +138,15 @@ Commands cover every documented Public API endpoint: `facets`, `listings`,
 search), `dealer` (one dealer by id), `dealer-listings` (one dealer's
 inventory), and `usage` (authenticated account usage). Run any command with
 `--help` for its exact flags.
+
+Run `capabilities` for a machine-readable list of every supported Public API
+operation plus the (unsupported) account surface, with the reason and a link
+to Visor's Terms. `favorites`, `hides`, `saved-searches`, and `preferences`
+exist only as explicit stubs: they fail immediately with a structured
+`unsupported_operation` error and never touch a network, browser, or
+credential store. See
+[references/account-state.md](references/account-state.md) for why, and what
+to do instead.
 
 ## Required final output
 

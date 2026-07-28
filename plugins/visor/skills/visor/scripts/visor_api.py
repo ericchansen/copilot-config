@@ -18,7 +18,7 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
-PLUGIN_VERSION = "0.2.0"  # keep in sync with plugins/visor/plugin.json
+PLUGIN_VERSION = "0.3.0"  # keep in sync with plugins/visor/plugin.json
 BASE_URL = "https://api.visor.vin/v1"
 USER_AGENT = f"visor/{PLUGIN_VERSION}"
 DEFAULT_FIELDS = ",".join(
@@ -724,6 +724,119 @@ def run_usage(args: argparse.Namespace, api_key: str) -> dict[str, Any]:
     }
 
 
+TERMS_URL = "https://visor.vin/terms#prohibited"
+
+PUBLIC_OPERATIONS = (
+    {
+        "command": "facets",
+        "endpoint": "/facets",
+        "description": "Discover canonical facet values for filtering.",
+    },
+    {
+        "command": "listings",
+        "endpoint": "/listings",
+        "description": "Search active, sold, or snapshot inventory.",
+    },
+    {
+        "command": "listing",
+        "endpoint": "/listings/{listing_id}",
+        "description": "Retrieve one listing detail record by id.",
+    },
+    {
+        "command": "vin",
+        "endpoint": "/vins/{vin}",
+        "description": "Retrieve the current or latest known VIN record.",
+    },
+    {
+        "command": "dealers",
+        "endpoint": "/dealers",
+        "description": "Search public dealer summaries.",
+    },
+    {
+        "command": "dealer",
+        "endpoint": "/dealers/{dealer_id}",
+        "description": "Retrieve one dealer by id.",
+    },
+    {
+        "command": "dealer-listings",
+        "endpoint": "/dealers/{dealer_id}/listings",
+        "description": "Search attributed dealer inventory.",
+    },
+    {
+        "command": "usage",
+        "endpoint": "/usage",
+        "description": "Summarize authenticated Public API account usage.",
+    },
+)
+
+# Account shopping state (favorites, hides, saved searches, preferences) is only
+# reachable through Visor's private, undocumented in-app endpoints. Visor's Terms
+# of Use (see TERMS_URL) prohibit automated/scripted access, reverse engineering,
+# and scraping outside the documented Public API, so this skill never attempts
+# it: no browser/CDP attachment, no cookie access, no private-bundle inspection.
+ACCOUNT_OPERATIONS = (
+    {"command": "favorites", "description": "Saved/favorited vehicles"},
+    {"command": "hides", "description": "Hidden listings"},
+    {"command": "saved-searches", "description": "Saved search definitions and results"},
+    {"command": "preferences", "description": "Shopping preferences (ZIP, filters, display, show-sold)"},
+)
+
+ACCOUNT_NEXT_ACTIONS = (
+    "Use the Visor web app UI (visor.vin) directly to view or change this data.",
+    "Ask Visor to publish an authenticated Public API endpoint or grant explicit "
+    "written permission for programmatic account access.",
+)
+
+
+def capabilities_payload() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "retrieved_at": utc_now(),
+        "public_api": {
+            "base_url": BASE_URL,
+            "docs": "https://api.visor.vin/docs",
+            "auth": "VISOR_API_KEY environment variable (Bearer token)",
+            "operations": [dict(op, supported=True) for op in PUBLIC_OPERATIONS],
+        },
+        "account": {
+            "surface": "account",
+            "supported": False,
+            "reason": "unsupported_operation",
+            "terms_url": TERMS_URL,
+            "summary": (
+                "Account shopping state is only reachable through Visor's private, "
+                "undocumented app endpoints. Visor's Terms of Use prohibit automated "
+                "access, reverse engineering, and scraping outside the documented "
+                "Public API, so this skill does not implement it."
+            ),
+            "operations": [dict(op, supported=False) for op in ACCOUNT_OPERATIONS],
+            "next_actions": list(ACCOUNT_NEXT_ACTIONS),
+        },
+    }
+
+
+def run_capabilities(args: argparse.Namespace) -> dict[str, Any]:
+    del args  # No options; output is static and requires no credentials.
+    return capabilities_payload()
+
+
+def run_account_unsupported(operation: str) -> dict[str, Any]:
+    """Fail fast and explicitly for any account-scoped command.
+
+    Never touches the network, a browser, cookies, or VISOR_API_KEY: account
+    operations are mechanically isolated from the public transport and always
+    fail closed rather than return an empty success or prompt for credentials.
+    """
+    raise ClientError(
+        "unsupported_operation",
+        f"Visor account {operation} are not available through this skill; "
+        "automated or private-endpoint access is not supported.",
+        surface="account",
+        terms_url=TERMS_URL,
+        next_actions=list(ACCOUNT_NEXT_ACTIONS),
+    )
+
+
 def positive_int(value: str) -> int:
     try:
         parsed = int(value)
@@ -869,6 +982,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Summarize authenticated account usage.",
     )
     usage.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
+
+    subparsers.add_parser(
+        "capabilities",
+        help="List supported Public API operations and unsupported account surfaces.",
+    )
+
+    for operation in ACCOUNT_OPERATIONS:
+        subparsers.add_parser(
+            operation["command"],
+            help=(
+                f"Not supported: {operation['description']} require Visor's private "
+                "app endpoints, which this skill does not access. See `capabilities`."
+            ),
+        )
+
     return parser
 
 
@@ -891,29 +1019,43 @@ def main() -> int:
 
     parser = build_parser()
     args = parser.parse_args()
+    account_commands = {operation["command"] for operation in ACCOUNT_OPERATIONS}
     try:
-        api_key = os.environ.get("VISOR_API_KEY", "")
-        if not api_key:
-            raise ClientError(
-                "configuration_error",
-                "VISOR_API_KEY is not set in the environment.",
-            )
-        if args.command == "facets":
-            output = run_facets(args, api_key)
-        elif args.command == "listings":
-            output = run_listings(args, api_key)
-        elif args.command == "listing":
-            output = run_listing_detail(args, api_key)
-        elif args.command == "vin":
-            output = run_vin(args, api_key)
-        elif args.command == "dealers":
-            output = run_dealers(args, api_key)
-        elif args.command == "dealer":
-            output = run_dealer_detail(args, api_key)
-        elif args.command == "dealer-listings":
-            output = run_dealer_listings(args, api_key)
+        # Capabilities discovery and account-surface stubs are mechanically
+        # isolated from the public transport: neither reads VISOR_API_KEY, and
+        # account commands never reach request_json/urlopen at all.
+        if args.command == "capabilities":
+            output = run_capabilities(args)
+        elif args.command in account_commands:
+            output = run_account_unsupported(args.command)
         else:
-            output = run_usage(args, api_key)
+            api_key = os.environ.get("VISOR_API_KEY", "")
+            if not api_key:
+                raise ClientError(
+                    "configuration_error",
+                    "VISOR_API_KEY is not set in the environment.",
+                )
+            if args.command == "facets":
+                output = run_facets(args, api_key)
+            elif args.command == "listings":
+                output = run_listings(args, api_key)
+            elif args.command == "listing":
+                output = run_listing_detail(args, api_key)
+            elif args.command == "vin":
+                output = run_vin(args, api_key)
+            elif args.command == "dealers":
+                output = run_dealers(args, api_key)
+            elif args.command == "dealer":
+                output = run_dealer_detail(args, api_key)
+            elif args.command == "dealer-listings":
+                output = run_dealer_listings(args, api_key)
+            elif args.command == "usage":
+                output = run_usage(args, api_key)
+            else:
+                raise ClientError(
+                    "internal_error",
+                    f"Unrecognized command: {args.command}.",
+                )
     except ClientError as exc:
         error = {
             "ok": False,

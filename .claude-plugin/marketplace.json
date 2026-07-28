@@ -85,7 +85,7 @@
       "name": "visor",
       "source": "plugins/visor",
       "description": "Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.",
-      "version": "0.2.0"
+      "version": "0.3.0"
     }
   ]
 }
