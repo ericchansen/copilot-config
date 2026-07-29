@@ -49,7 +49,7 @@
       "name": "git-commit",
       "source": "plugins/git-commit",
       "description": "Create conventional commits with diff analysis, safe staging, and repository guideline awareness.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "git-safety-scan",
@@ -61,7 +61,7 @@
       "name": "github-writer",
       "source": "plugins/github-writer",
       "description": "Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "meeting-transcription",

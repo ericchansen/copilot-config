@@ -48,6 +48,12 @@ Before writing the file, review your content against these rules:
 - **Always** write markdown to a temp file first, then use `--body-file`
 - **Avoid non-ASCII** when possible: use `--` instead of em-dash, `->` instead of arrows
 
+#### Markdown Source Layout
+- **Never** hard-wrap PR, issue, or comment prose at 72, 80, or any other fixed column
+- Keep each logical paragraph on one physical source line and retain blank lines between paragraphs and sections
+- Keep each Markdown bullet on one physical source line
+- Let GitHub soft-wrap prose and bullets visually to fit the available width
+
 #### No Machine-Specific Content
 - **Never** include real usernames, machine names, or user-specific paths
   - Bad: `C:\Users\<username>\.copilot\config.json`
@@ -118,17 +124,16 @@ Remove-Item $bodyFile -ErrorAction SilentlyContinue
 ```markdown
 ## Summary
 
-Brief description of what this PR does and why.
+Explain what this PR changes and why the change is needed in one logical paragraph on one physical source line, even when the sentence is long enough for GitHub to wrap visually.
 
 ### Changes
 
-- Grouped bullet list of changes
-- With `inline code` for file/function names
+- Keep each grouped bullet on one physical source line and use `inline code` for file or function names where that makes the change easier to identify.
+- Preserve blank lines between sections, but do not insert source line breaks solely to fit a fixed text width.
 
 ### Testing
 
-- How it was tested
-- Test results (e.g., "261 tests pass")
+- Describe how the change was tested and include the relevant result on one physical source line.
 ```
 
 ## Issue Title Conventions
@@ -140,7 +145,8 @@ Brief description of what this PR does and why.
 ## Critical Rules
 
 1. **ALWAYS** use `--body-file` with a temp markdown file -- no exceptions
-2. **NEVER** include machine-specific info -- sanitize before writing
-3. **ALWAYS** include version info in bug reports -- get it programmatically
-4. **ALWAYS** use generic placeholders in reproduction steps
-5. **REVIEW** content for PII/internal data before posting -- treat this as a public-facing communication
+2. **NEVER** hard-wrap prose or bullets to a fixed column -- let GitHub soft-wrap them
+3. **NEVER** include machine-specific info -- sanitize before writing
+4. **ALWAYS** include version info in bug reports -- get it programmatically
+5. **ALWAYS** use generic placeholders in reproduction steps
+6. **REVIEW** content for PII/internal data before posting -- treat this as a public-facing communication

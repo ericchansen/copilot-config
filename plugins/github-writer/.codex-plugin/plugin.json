@@ -1,6 +1,6 @@
 {
   "name": "github-writer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.",
   "skills": "./skills/"
 }

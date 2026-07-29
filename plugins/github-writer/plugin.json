@@ -1,7 +1,7 @@
 {
   "name": "github-writer",
   "description": "Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Eric Hansen",
     "url": "https://github.com/ericchansen"
