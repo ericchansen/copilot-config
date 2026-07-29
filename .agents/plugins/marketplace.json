@@ -51,6 +51,7 @@
     },
     {
       "name": "git-commit",
+      "version": "0.1.1",
       "source": { "source": "local", "path": "./plugins/git-commit" },
       "interface": { "displayName": "Git Commit" },
       "description": "Create conventional commits with diff analysis, safe staging, and repository guideline awareness.",
@@ -67,6 +68,7 @@
     },
     {
       "name": "github-writer",
+      "version": "0.1.1",
       "source": { "source": "local", "path": "./plugins/github-writer" },
       "interface": { "displayName": "GitHub Writer" },
       "description": "Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.",

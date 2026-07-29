@@ -43,7 +43,13 @@ jobs:
             if [ ! -f "$src/plugin.json" ]; then
               echo "::error::plugin '$name' missing $src/plugin.json"
               errors=$((errors + 1))
+              continue
             fi
+            entry_version=$(echo "$entry" | jq -r '.version')
+            manifest_name=$(jq -r '.name' "$src/plugin.json")
+            manifest_version=$(jq -r '.version' "$src/plugin.json")
+            [ "$name" = "$manifest_name" ] || { echo "::error::marketplace plugin '$name' != $src/plugin.json name '$manifest_name'"; errors=$((errors + 1)); }
+            [ "$entry_version" = "$manifest_version" ] || { echo "::error::marketplace plugin '$name' version '$entry_version' != $src/plugin.json version '$manifest_version'"; errors=$((errors + 1)); }
           done < <(jq -c '.plugins[]' "$MARKET")
           [ $errors -gt 0 ] && exit 1
           echo "✓ All marketplace entries resolve to a plugin.json"
@@ -134,6 +140,12 @@ jobs:
             if [ ! -f "$dir/.codex-plugin/plugin.json" ]; then
               echo "::error::codex plugin '$name' missing $dir/.codex-plugin/plugin.json"
               errors=$((errors + 1))
+              continue
+            fi
+            catalog_version=$(echo "$entry" | jq -r '.version // empty')
+            if [ -n "$catalog_version" ]; then
+              manifest_version=$(jq -r '.version' "$dir/.codex-plugin/plugin.json")
+              [ "$catalog_version" = "$manifest_version" ] || { echo "::error::codex plugin '$name' version '$catalog_version' != $dir/.codex-plugin/plugin.json version '$manifest_version'"; errors=$((errors + 1)); }
             fi
           done < <(jq -c '.plugins[]' "$CODEX")
           [ $errors -gt 0 ] && exit 1
