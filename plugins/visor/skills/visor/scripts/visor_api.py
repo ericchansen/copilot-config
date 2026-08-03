@@ -18,7 +18,7 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
-PLUGIN_VERSION = "0.3.0"  # keep in sync with plugins/visor/plugin.json
+PLUGIN_VERSION = "0.3.1"  # keep in sync with plugins/visor/plugin.json
 BASE_URL = "https://api.visor.vin/v1"
 USER_AGENT = f"visor/{PLUGIN_VERSION}"
 DEFAULT_FIELDS = ",".join(
@@ -305,6 +305,8 @@ def read_cache(
     query: dict[str, str],
     ttl_seconds: int,
 ) -> dict[str, Any] | None:
+    if ttl_seconds == 0:
+        return None
     try:
         cached = json.loads(cache_file.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -910,7 +912,7 @@ def build_parser() -> argparse.ArgumentParser:
     facets.add_argument("--cache-file")
     facets.add_argument(
         "--cache-ttl-seconds",
-        type=positive_int,
+        type=nonnegative_int,
         default=86400,
     )
 

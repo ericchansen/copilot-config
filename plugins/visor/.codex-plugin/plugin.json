@@ -1,6 +1,6 @@
 {
   "name": "visor",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.",
   "skills": "./skills/"
 }

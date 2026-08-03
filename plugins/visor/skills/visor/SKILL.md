@@ -82,6 +82,8 @@ rely on a reference to tell you to load another reference.
   Never imply that a public inventory/dealer command can retrieve it.
 - Facet-first discovery precedes narrow Visor searches; successful zero-result
   searches can still be billable.
+- Treat unexpectedly empty or suspiciously small filtered results as possible
+  vocabulary drift; require a forced-fresh facet check before claiming absence.
 - Active inventory is not proof of dealer availability. Distinguish stock,
   transit, and build.
 - A listing price can exclude or depend on incentives, fees, add-ons, tax,

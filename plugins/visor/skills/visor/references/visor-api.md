@@ -66,6 +66,32 @@ Categorical buckets are under `data.facets`. Numeric buckets are under
 `count` before relying on a metric. Small samples can return
 `null_reason=insufficient_sample`.
 
+## OpenSpec vocabulary migrations
+
+Visor is migrating specification identifiers brand by brand to OpenSpec,
+using manufacturer-native names. Genesis migrated first; other brands will
+follow on a rolling basis without an API version change or an in-band migration
+notice. Endpoints, authentication, and response shapes do not change.
+
+Stored `model`, `trim`, `version`, option, engine, drivetrain, and other
+attribute values can stop matching after a brand migrates. The API returns an
+ordinary empty result for a stale value, so the response shape alone cannot
+distinguish vocabulary drift from genuinely absent inventory.
+
+Treat an unexpectedly empty or suspiciously small filtered result as
+unverified:
+
+1. Re-query the relevant facets with `--cache-ttl-seconds 0`.
+2. Confirm every stored filter value still exists in the fresh facet buckets.
+3. If a value disappeared or changed, resolve its current value from those
+   facets and rerun the inventory query.
+4. Assert that no matching inventory exists only after the fresh facet check
+   confirms the filters remain valid.
+
+Facet caches use a 24-hour default TTL. A cache captured before a brand
+migration can remain active for up to one day afterward; bypass it before
+concluding that inventory disappeared.
+
 ## Meaning limits
 
 - Active inventory is current API evidence, not dealer confirmation.
