@@ -199,6 +199,28 @@ class VisorApiSecurityTests(unittest.TestCase):
 
             self.assertEqual(raised.exception.error_type, "cache_error")
 
+    def test_zero_cache_ttl_forces_fresh_without_reading_cache(self) -> None:
+        helper = load_helper()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_file = Path(temp_dir) / "facets.json"
+            cache_file.write_bytes(b"\xff\xfe\x00")
+
+            self.assertIsNone(
+                helper.read_cache(cache_file, {"facets": "model"}, ttl_seconds=0)
+            )
+
+        parser = helper.build_parser()
+        namespace = parser.parse_args(
+            [
+                "facets",
+                "--facets",
+                "model",
+                "--cache-ttl-seconds",
+                "0",
+            ]
+        )
+        self.assertEqual(namespace.cache_ttl_seconds, 0)
+
     def test_cache_write_unserializable_output_returns_structured_error(self) -> None:
         helper = load_helper()
         with tempfile.TemporaryDirectory() as temp_dir:

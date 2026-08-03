@@ -1,7 +1,7 @@
 {
   "name": "visor",
   "description": "Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Eric Hansen",
     "url": "https://github.com/ericchansen"
