@@ -1,6 +1,6 @@
 {
   "name": "git-commit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Create conventional commits with diff analysis, safe staging, and repository guideline awareness.",
   "skills": "./skills/"
 }
