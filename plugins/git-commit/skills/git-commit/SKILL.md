@@ -44,10 +44,11 @@ Create standardized git commits using Conventional Commits + Chris Beams' seven 
 
 ## Workflow
 
-1. **Analyze**: `git diff --staged` (or `git diff` if nothing staged)
-2. **Stage**: `git add` relevant files. Never commit secrets.
-3. **Generate message**: Determine type, scope, description from the diff.
-4. **Commit**: `git commit -m "<type>[scope]: <description>"`
+1. **Inspect history**: Identify the PR base branch, then run `git log --oneline origin/<base>..HEAD`. If the pending work corrects an unmerged commit, amend or rebase the original commit instead of creating a follow-up commit.
+2. **Analyze**: `git diff --staged` (or `git diff` if nothing staged)
+3. **Stage**: `git add` relevant files. Never commit secrets.
+4. **Generate message**: Determine type, scope, description from the diff.
+5. **Commit or rewrite**: Create one commit per logical change. For a correction to unmerged work, use `git commit --amend` or interactive rebase; after rewriting a pushed feature branch, use `git push --force-with-lease`.
 
 ## Safety
 
@@ -57,4 +58,4 @@ Create standardized git commits using Conventional Commits + Chris Beams' seven 
 
 # New Commit or Amend
 
-If you're working in a feature branch or PR, does this commit refactor, rewrite or fix code that was introduced in the same feature branch or PR? If so, consider using `git commit --amend` to update the existing commit instead of creating a new one. This helps keep the commit history clean and focused on logical changes.
+If you're working in a feature branch or PR, a correction to code introduced in the same unmerged branch must be folded into the commit it corrects. Do not create a separate `fix`, recovery, or follow-up commit. Before opening or updating a PR, verify the branch has one commit per logical change and rewrite the feature branch with `--force-with-lease` if needed.

@@ -51,7 +51,7 @@
     },
     {
       "name": "git-commit",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "source": { "source": "local", "path": "./plugins/git-commit" },
       "interface": { "displayName": "Git Commit" },
       "description": "Create conventional commits with diff analysis, safe staging, and repository guideline awareness.",
