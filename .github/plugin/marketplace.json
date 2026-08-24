@@ -73,7 +73,7 @@
       "name": "pr-review-address",
       "source": "plugins/pr-review-address",
       "description": "Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "foundry-image-gen",
