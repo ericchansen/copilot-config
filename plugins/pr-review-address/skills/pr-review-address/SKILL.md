@@ -1,6 +1,6 @@
 ---
 name: pr-review-address
-description: 'Review, address, and resolve PR feedback — examines all comments, review threads, and requested changes on a GitHub PR. Researches best practices, makes code fixes for valid feedback, pushes back with reasoned replies on items that are wrong or counterproductive, and resolves threads. Use when user says "address PR comments", "review the PR feedback", "fix PR review", "update PR", "handle review comments", or any variant of responding to pull request feedback.'
+description: 'Review, address, and resolve PR feedback across comments, review threads, and requested changes. Uses origin-targeted fixup commits for PR-introduced defects and autosquashes before every push or PR update. Researches valid feedback, pushes back on incorrect advice, replies to every thread, and resolves it. Use for "address PR comments", "review PR feedback", "fix PR review", "update PR", "handle review comments", or equivalent requests.'
 license: MIT
 allowed-tools: Bash, PowerShell
 ---
@@ -13,9 +13,11 @@ Exercise engineering judgment on every comment — don't fix blindly.
 
 **Do this first — before reading feedback or making any changes.** Fixing code on a stale branch creates merge conflicts that waste time.
 
-Check if the PR branch is behind its base (`main`/`master`). If behind, rebase now:
+Read the PR's actual base branch, including for stacked PRs, then check whether
+the branch is behind it. If behind, rebase now:
 
 ```bash
+gh pr view --json baseRefName -q .baseRefName
 git fetch origin
 git rebase origin/<base-branch>
 ```
@@ -61,46 +63,58 @@ Then choose:
 
 | Origin commit is… | Action |
 | --- | --- |
-| A commit in this PR (`origin/<base>..HEAD`) | **Fix up into that commit.** |
-| Already in the base branch (pre-existing bug) | New standalone commit — do not rewrite base history. |
+| A commit in this PR (`origin/<base>..HEAD`) | **Create a temporary `fixup!` commit targeting it.** |
+| Already in the base branch (pre-existing bug) | New standalone `fix:` commit - do not rewrite base history. |
 | Genuinely new work the reviewer asked for (new test, new feature, docs) | New commit with its own message. |
 
-### Fixing up into a PR commit
+### Create a temporary fixup commit
 
-Stage the fix and attach it to the origin commit, then autosquash:
+Stage the fix and attach it to the origin commit:
 
 ```bash
 git add <paths-you-fixed>      # stage only the fix — never `git add -A`
 git commit --fixup=<origin-sha>
-GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash origin/<base-branch>
 ```
-
-`--autosquash` reorders the fixup and marks it `fixup` automatically, so the todo list
-needs no hand-editing — `GIT_SEQUENCE_EDITOR=true` accepts it unattended. Git ≥ 2.38
-also accepts `--autosquash` without `-i`, but keep `-i` for compatibility with older
-installs (Ubuntu 22.04 ships 2.34). In PowerShell, set the env var separately:
-`$env:GIT_SEQUENCE_EDITOR = 'true'`.
 
 Stage only the paths you actually fixed and check `git diff --staged` before
 committing — `git add -A` sweeps in unrelated work and any stray secret.
 
-If the fix belongs in the tip commit and nothing else is pending, `git commit --amend
---no-edit` is equivalent and faster.
-
 Batch multiple `--fixup` commits and run one `rebase --autosquash` at the end rather
-than rebasing after each one.
+than rebasing after each one. They may exist locally while feedback is being addressed,
+but **never push them**. Before every push or PR update, autosquash all fixups against
+the actual base branch.
 
-After the rebase, re-run build + tests (rewriting history can silently break a commit
-that wasn't the one you edited), then:
+Bash:
+
+```bash
+GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash origin/<base-branch>
+```
+
+PowerShell:
+
+```powershell
+$env:GIT_SEQUENCE_EDITOR = 'true'
+git rebase -i --autosquash "origin/<base-branch>"
+Remove-Item Env:GIT_SEQUENCE_EDITOR
+```
+
+`--autosquash` reorders each fixup beside its target and marks it `fixup`
+automatically, so the todo list needs no hand-editing.
+
+After the rebase, re-run build + tests; rewriting history can silently break a
+commit that was not the one you edited.
+
+The final PR history should read as if the reviewed defects never existed. Before
+publishing, inspect `git log --reverse --oneline origin/<base-branch>..HEAD` and stop
+if any `fixup!`, `squash!`, "address review comments", "fix review feedback", or
+"PR fixes" subject remains. Create another targeted fixup and autosquash it into
+the origin commit.
+
+Once the final history and validation are clean:
 
 ```bash
 git push --force-with-lease
 ```
-
-The final PR history should read as if the reviewed defects never existed. If you end
-up with a commit whose message is a variation of "address review comments", "fix
-review feedback", or "PR fixes", that is a signal you skipped this step — squash it
-into its origin commit.
 
 Note: fixing up changes the SHA of the origin commit. Capture the **post-rebase** SHA
 for the reply in Step 4 (`git log --oneline`), not the SHA of the fixup commit.
@@ -156,10 +170,14 @@ Paginate with `after: "CURSOR"` if `hasNextPage` is true.
 
 ## Step 6: Verify CI
 
-Check CI status. If anything is failing, fix it before moving on. Always re-run build + tests after rebasing — even conflict-free rebases pull in base-branch changes that can break things.
+Check CI status. If anything is failing, fix it before moving on. If the failure
+was introduced by a commit in this PR, use another origin-targeted `fixup!` commit
+and autosquash before pushing. Always re-run build + tests after rebasing - even
+conflict-free rebases pull in base-branch changes that can break things.
 
 ## Step 7: Push and Summarize
 
-Push, verify CI passes, then report:
+Confirm autosquash left no temporary `fixup!` or `squash!` commits, push, verify
+CI passes, then report:
 - ✅ Fixed: N items | 💬 Replied: N | ❌ Pushed back: N
 - 🔄 Branch updated: yes/no | 🏗️ CI: passing/failing | 🧵 Threads: all resolved

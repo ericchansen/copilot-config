@@ -69,11 +69,11 @@ field.
 - `edge-browser` — Launch Microsoft Edge with a specific user profile and remote debugging enabled for CDP control.
 - `foundry-image-gen` — Generate and edit images using GPT-Image-2 deployed in Azure AI Foundry.
 - `git-code-review` — Run a structured closeout review over local, branch, commit, or PR diffs before shipping.
-- `git-commit` — Create conventional commits with diff analysis, safe staging, and repository guideline awareness.
+- `git-commit` — Curate conventional commits and autosquashed, rebase-ready history before pushes and PR updates.
 - `git-safety-scan` — Scan staged changes or commits for sensitive data before pushing to remote.
 - `github-writer` — Write PRs, issues, and comments for GitHub with encoding-safe body files and sanitized, structured content.
 - `meeting-transcription` — Locally transcribe recorded meetings, identify speakers, and produce evidence-based meeting notes.
-- `pr-review-address` — Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.
+- `pr-review-address` — Address GitHub PR feedback with origin-targeted fixups, autosquashed history, thread replies, and resolution.
 - `visor` — Research vehicles end to end with supported Visor retrieval, deal evaluation, market context, and evidence-gated shortlists.
 
 ## Repository structure

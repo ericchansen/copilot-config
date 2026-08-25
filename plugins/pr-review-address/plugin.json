@@ -1,7 +1,7 @@
 {
   "name": "pr-review-address",
-  "description": "Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.",
-  "version": "0.1.1",
+  "description": "Address GitHub PR feedback with origin-targeted fixups, autosquashed history, thread replies, and resolution.",
+  "version": "0.1.2",
   "author": {
     "name": "Eric Hansen",
     "url": "https://github.com/ericchansen"
