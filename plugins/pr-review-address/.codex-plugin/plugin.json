@@ -1,6 +1,6 @@
 {
   "name": "pr-review-address",
-  "version": "0.1.1",
-  "description": "Review, address, and resolve GitHub PR feedback across comments, review threads, and requested changes.",
+  "version": "0.1.2",
+  "description": "Address GitHub PR feedback with origin-targeted fixups, autosquashed history, thread replies, and resolution.",
   "skills": "./skills/"
 }

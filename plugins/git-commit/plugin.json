@@ -1,7 +1,7 @@
 {
   "name": "git-commit",
-  "description": "Create conventional commits with diff analysis, safe staging, and repository guideline awareness.",
-  "version": "0.1.2",
+  "description": "Curate conventional commits and autosquashed, rebase-ready history before pushes and PR updates.",
+  "version": "0.1.3",
   "author": {
     "name": "Eric Hansen",
     "url": "https://github.com/ericchansen"
