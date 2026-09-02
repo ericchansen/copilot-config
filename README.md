@@ -67,7 +67,7 @@ field.
 - `clean` — Perform post-merge git cleanup by returning to main/master, pulling latest, deleting merged branches, pruning remotes, and verifying a clean state.
 - `doc-generator` — Generate professional PDF and Word (DOCX) documents from markdown source files.
 - `edge-browser` — Launch Microsoft Edge with a specific user profile and remote debugging enabled for CDP control.
-- `foundry-image-gen` — Generate and edit images using GPT-Image-2 deployed in Azure AI Foundry.
+- `foundry-image-gen` — Generate and edit images with GPT-Image-2, FLUX.2-flex, and MAI-Image-2.5-Pro in Microsoft Foundry.
 - `git-code-review` — Run a structured closeout review over local, branch, commit, or PR diffs before shipping.
 - `git-commit` — Curate conventional commits and autosquashed, rebase-ready history before pushes and PR updates.
 - `git-safety-scan` — Scan staged changes or commits for sensitive data before pushing to remote.
