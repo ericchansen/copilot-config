@@ -78,8 +78,8 @@
     {
       "name": "foundry-image-gen",
       "source": "plugins/foundry-image-gen",
-      "description": "Generate and edit images using GPT-Image-2 deployed in Azure AI Foundry.",
-      "version": "0.1.2"
+      "description": "Generate and edit images with GPT-Image-2, FLUX.2-flex, and MAI-Image-2.5-Pro in Microsoft Foundry.",
+      "version": "0.2.0"
     },
     {
       "name": "visor",
